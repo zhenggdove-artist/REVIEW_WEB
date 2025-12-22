@@ -20,7 +20,20 @@
       font-style: normal;
       font-display: swap;
     }
-    * { font-family: 'GarmentDistrict', 'ChenYuluoyan', sans-serif !important; -webkit-font-smoothing: antialiased; }
+    @font-face {
+      font-family: 'Streetwear';
+      src: url('./fonts/Streetwear.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'GamaHand';
+      src: url('./fonts/GamaHand.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
     body {
       background-color: #fcfcfc;
       background-image: url('https://www.transparenttextures.com/patterns/handmade-paper.png');
@@ -38,16 +51,26 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #000; border-radius: 3px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
-    .admin-btn { width: 50px; height: 50px; border-radius: 50%; background: #888; border: none; cursor: pointer; transition: all 0.3s; opacity: 0.5; }
-    .admin-btn:hover { opacity: 1; transform: scale(1.1); }
+    .admin-btn { width: 25px; height: 25px; border-radius: 50%; background: #888; border: none; cursor: pointer; transition: all 0.3s; opacity: 0.5; }
+    .admin-btn:hover { opacity: 1; transform: scale(1.2); }
   </style>
 </head>
 <body>
   <div id="app"></div>
 
   <script>
+    // ============ 可用字體列表 ============
+    const AVAILABLE_FONTS = [
+      { id: 'GarmentDistrict', name: 'Garment District', sample: 'ABCD' },
+      { id: 'Streetwear', name: 'Streetwear', sample: 'ABCD' },
+      { id: 'GamaHand', name: 'Gama Hand', sample: 'ABCD' }
+    ];
+
     // ============ 初始數據 ============
     const INITIAL_DATA = {
+      settings: {
+        englishFont: 'GarmentDistrict'
+      },
       background: {
         color: '#fcfcfc',
         image: 'https://www.transparenttextures.com/patterns/handmade-paper.png'
@@ -81,22 +104,25 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v6')) || JSON.parse(JSON.stringify(INITIAL_DATA));
-    // 確保 decoration 存在
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v7')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    // 確保新欄位存在
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
+    if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     let isAdmin = false;
     let activeElementId = null;
 
     function saveData() {
-      localStorage.setItem('drawme_data_v6', JSON.stringify(siteData));
-      applyBackground();
+      localStorage.setItem('drawme_data_v7', JSON.stringify(siteData));
+      applyStyles();
       render();
     }
 
-    function applyBackground() {
+    function applyStyles() {
       const bg = siteData.background || INITIAL_DATA.background;
+      const font = siteData.settings?.englishFont || 'GarmentDistrict';
       document.body.style.backgroundColor = bg.color;
       document.body.style.backgroundImage = bg.image ? `url('${bg.image}')` : 'none';
+      document.body.style.fontFamily = `'${font}', 'ChenYuluoyan', sans-serif`;
     }
 
     function findElement(id, obj = siteData) {
@@ -123,6 +149,11 @@
       saveData();
     }
 
+    function updateSettings(updates) {
+      siteData.settings = { ...siteData.settings, ...updates };
+      saveData();
+    }
+
     // ============ 渲染函數 ============
     function renderElement(el, extraClass = '') {
       if (!el) return '';
@@ -141,22 +172,35 @@
     function renderSidebar() {
       if (!isAdmin) return '';
 
-      // 背景設定面板
+      // 背景與字體設定面板
       if (activeElementId === 'background-settings') {
         const bg = siteData.background || {};
+        const currentFont = siteData.settings?.englishFont || 'GarmentDistrict';
         return `
           <div class="sidebar open">
             <div class="p-6 border-b-2 border-black flex justify-between items-center">
-              <h3 class="text-xl font-bold">背景設定</h3>
+              <h3 class="text-xl font-bold">網站設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
             <div class="p-6 space-y-6 overflow-y-auto flex-1">
+              <div class="border-b-2 border-gray-200 pb-4">
+                <h4 class="font-bold mb-3">英文字體</h4>
+                <div class="space-y-2">
+                  ${AVAILABLE_FONTS.map(f => `
+                    <label class="flex items-center gap-3 p-2 border-2 rounded cursor-pointer hover:bg-gray-50 ${currentFont === f.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}">
+                      <input type="radio" name="font" value="${f.id}" ${currentFont === f.id ? 'checked' : ''} onchange="updateSettings({englishFont: '${f.id}'})">
+                      <span style="font-family: '${f.id}', sans-serif;" class="text-lg">${f.sample}</span>
+                      <span class="text-sm text-gray-500">${f.name}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
               <div>
-                <label class="block text-sm font-bold mb-2">背景顏色</label>
+                <h4 class="font-bold mb-3">背景顏色</h4>
                 <input type="color" value="${bg.color || '#fcfcfc'}" class="w-full h-12 cursor-pointer" onchange="updateBackground({color: this.value})">
               </div>
               <div>
-                <label class="block text-sm font-bold mb-2">背景圖片網址</label>
+                <h4 class="font-bold mb-3">背景圖片網址</h4>
                 <input type="text" value="${bg.image || ''}" class="w-full p-3 border-2 border-black rounded" placeholder="輸入圖片網址或留空" onchange="updateBackground({image: this.value})">
               </div>
               <div class="text-sm text-gray-500">
@@ -168,7 +212,7 @@
               </div>
             </div>
             <div class="p-6 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v6');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v7');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
             </div>
           </div>
         `;
@@ -219,7 +263,7 @@
             </div>
           </div>
           <div class="p-6 border-t-2 border-black">
-            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v6');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v7');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
           </div>
         </div>
       `;
@@ -247,12 +291,12 @@
       const d = siteData;
       document.getElementById('app').innerHTML = `
         <div class="${isAdmin ? 'admin-mode' : ''} min-h-screen relative">
-          <!-- 後台按鈕 - 右下角灰色圓圈 -->
-          <div class="fixed bottom-6 right-6 z-[2100] flex flex-col gap-3">
+          <!-- 後台按鈕 - 右下角小灰色圓圈 -->
+          <div class="fixed bottom-4 right-4 z-[2100] flex flex-col gap-2">
             ${!isAdmin ? `
               <button onclick="showLoginModal()" class="admin-btn" title="後台管理"></button>
             ` : `
-              <button onclick="selectElement('background-settings')" class="admin-btn" style="background: #4CAF50;" title="背景設定"></button>
+              <button onclick="selectElement('background-settings')" class="admin-btn" style="background: #4CAF50;" title="網站設定"></button>
               <button onclick="exitAdmin()" class="admin-btn" style="background: #333;" title="退出編輯"></button>
             `}
           </div>
@@ -360,7 +404,7 @@
     }
 
     // 初始化
-    applyBackground();
+    applyStyles();
     render();
   </script>
 </body>
