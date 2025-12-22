@@ -52,7 +52,7 @@
       background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png' },
       decoration: {
         circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } },
-        leftAnimation: { id: 'left-animation', content: '', width: 200, height: 300 }
+        leftAnimation: { id: 'left-animation', content: '', width: 200, height: 300, posX: 30, posY: 50 }
       },
       // 各區塊框線樣式
       boxStyles: {
@@ -785,6 +785,28 @@
                 <label class="block text-sm font-bold mb-2">高度: ${leftAnim.height || 300}px</label>
                 <input type="range" min="100" max="600" value="${leftAnim.height || 300}" class="w-full" onchange="siteData.decoration.leftAnimation.height = parseInt(this.value); saveData();">
               </div>
+              <div class="border-t pt-4 mt-4">
+                <h4 class="font-bold mb-3 text-sm">位置調整</h4>
+                <div>
+                  <label class="block text-sm font-bold mb-2">水平位置 (X): ${leftAnim.posX ?? 30}px</label>
+                  <input type="range" min="-500" max="1500" value="${leftAnim.posX ?? 30}" class="w-full" onchange="siteData.decoration.leftAnimation.posX = parseInt(this.value); saveData();">
+                  <div class="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>-500</span>
+                    <span>0</span>
+                    <span>750</span>
+                    <span>1500</span>
+                  </div>
+                </div>
+                <div class="mt-4">
+                  <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${leftAnim.posY ?? 50}%</label>
+                  <input type="range" min="0" max="100" value="${leftAnim.posY ?? 50}" class="w-full" onchange="siteData.decoration.leftAnimation.posY = parseInt(this.value); saveData();">
+                  <div class="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>上 0%</span>
+                    <span>中 50%</span>
+                    <span>下 100%</span>
+                  </div>
+                </div>
+              </div>
               ${leftAnim.content ? `
                 <div>
                   <div class="text-sm text-gray-500 mb-1">預覽：</div>
@@ -1183,11 +1205,14 @@
             const leftAnim = siteData.decoration?.leftAnimation;
             const hasContent = leftAnim?.content;
             if (!hasContent && !isAdmin) return '';
+            const posX = leftAnim?.posX ?? 30;
+            const posY = leftAnim?.posY ?? 50;
             return `
-              <div class="fixed top-1/2 left-8 z-10 -translate-y-1/2 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
+              <div class="fixed z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}"
+                   style="left: ${posX}px; top: ${posY}%;">
                 <div
                   class="${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'left-animation' ? 'ring-4 ring-pink-500' : ''}"
-                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px;"
+                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px; transform: translateY(-50%);"
                   ${isAdmin ? 'onclick="selectElement(\'left-animation\')"' : ''}
                 >
                   ${hasContent ?
@@ -1195,7 +1220,7 @@
                       `<video src="${leftAnim.content}" autoplay loop muted playsinline class="w-full h-full object-contain"></video>` :
                       `<img src="${leftAnim.content}" class="w-full h-full object-contain" alt="動畫">`) :
                     `<div class="w-full h-full border-2 border-dashed border-gray-400 rounded flex items-center justify-center text-gray-400 text-sm text-center p-4 bg-gray-50/50">
-                      點擊設定<br>左側動畫
+                      點擊設定<br>背景圖片
                     </div>`
                   }
                 </div>
