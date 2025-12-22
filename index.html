@@ -375,7 +375,7 @@
       const adminClass = isAdmin ? 'admin-highlight' : '';
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
       const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
-      const onClick = isAdmin ? `onclick="selectElement('${el.id}')"` : '';
+      const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
       const youtubeId = getYouTubeId(el.content);
       if (youtubeId) {
@@ -395,7 +395,7 @@
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
       const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
       const color = el.style?.color ? `color: ${el.style.color};` : '';
-      const onClick = isAdmin ? `onclick="selectElement('${el.id}')"` : '';
+      const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
       if (el.type === 'media') return renderMedia(el, extraClass);
       if (el.type === 'image') {
