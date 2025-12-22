@@ -6,53 +6,29 @@
   <title>DrawMeTaiwan - 溫柔視線行動</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @font-face {
-      font-family: 'ChenYuluoyan';
-      src: url('./fonts/ChenYuluoyan-Thin.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: 'GarmentDistrict';
-      src: url('./fonts/GarmentDistrict-Regular.otf') format('opentype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: 'Streetwear';
-      src: url('./fonts/Streetwear.otf') format('opentype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: 'GamaHand';
-      src: url('./fonts/GamaHand.otf') format('opentype');
-      font-weight: normal;
-      font-style: normal;
-      font-display: swap;
-    }
-    body {
-      background-color: #fcfcfc;
-      background-image: url('https://www.transparenttextures.com/patterns/handmade-paper.png');
-      color: #1a1a1a;
-      margin: 0; padding: 0; overflow-x: hidden;
-    }
+    @font-face { font-family: 'ChenYuluoyan'; src: url('./fonts/ChenYuluoyan-Thin.ttf') format('truetype'); font-display: swap; }
+    @font-face { font-family: 'GarmentDistrict'; src: url('./fonts/GarmentDistrict-Regular.otf') format('opentype'); font-display: swap; }
+    @font-face { font-family: 'Streetwear'; src: url('./fonts/Streetwear.otf') format('opentype'); font-display: swap; }
+    @font-face { font-family: 'GamaHand'; src: url('./fonts/GamaHand.otf') format('opentype'); font-display: swap; }
+    body { background-color: #fcfcfc; background-image: url('https://www.transparenttextures.com/patterns/handmade-paper.png'); color: #1a1a1a; margin: 0; padding: 0; overflow-x: hidden; }
     .sketch-border { border: 2px solid #1a1a1a; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; }
     .sketch-shadow { box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.8); }
     .admin-highlight { outline: 3px dashed #FF00A0 !important; outline-offset: 4px; cursor: pointer; }
     .admin-highlight:hover { background: rgba(255,0,160,0.1); }
-    .sidebar { width: 350px; background: #fff; border-left: 3px solid #000; height: 100vh; position: fixed; right: 0; top: 0; z-index: 2000; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease; }
+    .sidebar { width: 380px; background: #fff; border-left: 3px solid #000; height: 100vh; position: fixed; right: 0; top: 0; z-index: 2000; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease; }
     .sidebar.open { transform: translateX(0); }
     .content-area { transition: margin-right 0.3s ease; }
-    .admin-mode .content-area { margin-right: 350px; }
+    .admin-mode .content-area { margin-right: 380px; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #000; border-radius: 3px; }
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
     .admin-btn { width: 25px; height: 25px; border-radius: 50%; background: #888; border: none; cursor: pointer; transition: all 0.3s; opacity: 0.5; }
     .admin-btn:hover { opacity: 1; transform: scale(1.2); }
+    .rich-editor { border: 2px solid #000; border-radius: 4px; min-height: 120px; padding: 12px; outline: none; }
+    .rich-editor:focus { border-color: #FF00A0; }
+    .toolbar-btn { padding: 4px 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; }
+    .toolbar-btn:hover { background: #f0f0f0; }
+    .toolbar-btn.active { background: #FF00A0; color: white; }
   </style>
 </head>
 <body>
@@ -61,58 +37,52 @@
   <script>
     // ============ 可用字體列表 ============
     const AVAILABLE_FONTS = [
-      { id: 'GarmentDistrict', name: 'Garment District', sample: 'ABCD' },
-      { id: 'Streetwear', name: 'Streetwear', sample: 'ABCD' },
-      { id: 'GamaHand', name: 'Gama Hand', sample: 'ABCD' }
+      { id: 'GarmentDistrict', name: 'Garment District' },
+      { id: 'Streetwear', name: 'Streetwear' },
+      { id: 'GamaHand', name: 'Gama Hand' },
+      { id: 'ChenYuluoyan', name: '辰宇落雁體' }
     ];
 
     // ============ 初始數據 ============
     const INITIAL_DATA = {
-      settings: {
-        englishFont: 'GarmentDistrict'
-      },
-      background: {
-        color: '#fcfcfc',
-        image: 'https://www.transparenttextures.com/patterns/handmade-paper.png'
-      },
-      decoration: {
-        circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } }
-      },
+      settings: { englishFont: 'GarmentDistrict' },
+      background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png' },
+      decoration: { circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } } },
       hero: {
-        title: { id: 'hero-title', type: 'text', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
-        subtitle: { id: 'hero-subtitle', type: 'text', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
-        mainImage: { id: 'hero-image', type: 'image', content: 'https://picsum.photos/seed/drawme/800/800', style: { rotation: 0 } }
+        title: { id: 'hero-title', type: 'richtext', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
+        subtitle: { id: 'hero-subtitle', type: 'richtext', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
+        mainMedia: { id: 'hero-media', type: 'media', content: 'https://picsum.photos/seed/drawme/800/800', mediaType: 'image', style: { rotation: 0 } }
       },
       manifesto: {
         paragraphs: [
-          { id: 'p1', type: 'text', content: '最近搭捷運時，你是否也感覺到了那股緊繃？身為一個藝術家看到整個台灣社會，開始草木皆兵的狀態相當難受。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0 } },
-          { id: 'p2', type: 'text', content: '我希望人們開始尋找的不是敵人，而是有趣的經歷與朋友、夥伴。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0.5 } },
-          { id: 'p3', type: 'text', content: '這不是繪畫比賽，這是一個整體社會關於「看見」的重新練習。當我們願意花 5 分鐘去觀察一個陌生人，我們就無法再把對方視為冰冷的「威脅」。', style: { fontSize: 'text-xl', color: '#000000', rotation: -0.5 } }
+          { id: 'p1', type: 'richtext', content: '最近搭捷運時，你是否也感覺到了那股緊繃？身為一個藝術家看到整個台灣社會，開始草木皆兵的狀態相當難受。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0 } },
+          { id: 'p2', type: 'richtext', content: '我希望人們開始尋找的不是敵人，而是有趣的經歷與朋友、夥伴。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0.5 } },
+          { id: 'p3', type: 'richtext', content: '這不是繪畫比賽，這是一個整體社會關於「看見」的重新練習。當我們願意花 5 分鐘去觀察一個陌生人，我們就無法再把對方視為冰冷的「威脅」。', style: { fontSize: 'text-xl', color: '#000000', rotation: -0.5 } }
         ]
       },
       actions: {
-        title: { id: 'actions-title', type: 'text', content: '如何參與？', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
+        title: { id: 'actions-title', type: 'richtext', content: '如何參與？', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
         items: [
-          { id: 'a1', type: 'text', content: '索取胸章：我將自費製作並發送，索取地點整理於此。', style: { fontSize: 'text-lg', color: '#000000', rotation: 0 } },
-          { id: 'a2', type: 'text', content: '自行列印：我無償公開圖檔，歡迎自行下載列印。', style: { fontSize: 'text-lg', color: '#000000', rotation: 1 } },
-          { id: 'a3', type: 'text', content: '開始觀察：放下手機，拿起筆。上傳 Tag #DrawMeTaiwan。', style: { fontSize: 'text-lg', color: '#000000', rotation: -1 } }
+          { id: 'a1', type: 'richtext', content: '索取胸章：我將自費製作並發送，索取地點整理於此。', style: { fontSize: 'text-lg', color: '#000000', rotation: 0 } },
+          { id: 'a2', type: 'richtext', content: '自行列印：我無償公開圖檔，歡迎自行下載列印。', style: { fontSize: 'text-lg', color: '#000000', rotation: 1 } },
+          { id: 'a3', type: 'richtext', content: '開始觀察：放下手機，拿起筆。上傳 Tag #DrawMeTaiwan。', style: { fontSize: 'text-lg', color: '#000000', rotation: -1 } }
         ]
       },
       footer: {
-        contact: { id: 'footer-contact', type: 'text', content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。', style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0 } }
+        contact: { id: 'footer-contact', type: 'richtext', content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。', style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0 } }
       }
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v7')) || JSON.parse(JSON.stringify(INITIAL_DATA));
-    // 確保新欄位存在
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v8')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
+    if (!siteData.hero.mainMedia) siteData.hero.mainMedia = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mainMedia));
     let isAdmin = false;
     let activeElementId = null;
 
     function saveData() {
-      localStorage.setItem('drawme_data_v7', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v8', JSON.stringify(siteData));
       applyStyles();
       render();
     }
@@ -154,7 +124,78 @@
       saveData();
     }
 
+    // ============ 導出/導入功能 ============
+    function exportData() {
+      const dataStr = JSON.stringify(siteData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'site-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('設定已導出！\\n\\n更新網站步驟：\\n1. 用文字編輯器打開 index.html\\n2. 找到 INITIAL_DATA = {...}\\n3. 用導出的 JSON 內容替換\\n4. 提交並推送到 GitHub');
+    }
+
+    function copyDataToClipboard() {
+      const dataStr = JSON.stringify(siteData, null, 2);
+      navigator.clipboard.writeText(dataStr).then(() => {
+        alert('設定已複製到剪貼板！\\n\\n更新網站步驟：\\n1. 用文字編輯器打開 index.html\\n2. 找到 const INITIAL_DATA = {...};\\n3. 用複製的內容替換 {...} 部分\\n4. 儲存檔案\\n5. git add . && git commit -m "更新內容" && git push');
+      });
+    }
+
+    function importData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            siteData = data;
+            saveData();
+            alert('設定已導入！');
+          } catch (err) {
+            alert('檔案格式錯誤！');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    // ============ YouTube 解析 ============
+    function getYouTubeId(url) {
+      const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+
+    function isVideoUrl(url) {
+      return getYouTubeId(url) || url.includes('.mp4') || url.includes('.webm');
+    }
+
     // ============ 渲染函數 ============
+    function renderMedia(el, extraClass = '') {
+      if (!el) return '';
+      const adminClass = isAdmin ? 'admin-highlight' : '';
+      const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
+      const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
+      const onClick = isAdmin ? `onclick="selectElement('${el.id}')"` : '';
+
+      const youtubeId = getYouTubeId(el.content);
+      if (youtubeId) {
+        return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>
+          <iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>
+        </div>`;
+      }
+      if (el.content.includes('.mp4') || el.content.includes('.webm')) {
+        return `<video src="${el.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}></video>`;
+      }
+      return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+    }
+
     function renderElement(el, extraClass = '') {
       if (!el) return '';
       const adminClass = isAdmin ? 'admin-highlight' : '';
@@ -163,6 +204,7 @@
       const color = el.style?.color ? `color: ${el.style.color};` : '';
       const onClick = isAdmin ? `onclick="selectElement('${el.id}')"` : '';
 
+      if (el.type === 'media') return renderMedia(el, extraClass);
       if (el.type === 'image') {
         return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
       }
@@ -172,47 +214,42 @@
     function renderSidebar() {
       if (!isAdmin) return '';
 
-      // 背景與字體設定面板
       if (activeElementId === 'background-settings') {
         const bg = siteData.background || {};
         const currentFont = siteData.settings?.englishFont || 'GarmentDistrict';
         return `
           <div class="sidebar open">
-            <div class="p-6 border-b-2 border-black flex justify-between items-center">
-              <h3 class="text-xl font-bold">網站設定</h3>
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">網站設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
-            <div class="p-6 space-y-6 overflow-y-auto flex-1">
-              <div class="border-b-2 border-gray-200 pb-4">
-                <h4 class="font-bold mb-3">英文字體</h4>
-                <div class="space-y-2">
-                  ${AVAILABLE_FONTS.map(f => `
-                    <label class="flex items-center gap-3 p-2 border-2 rounded cursor-pointer hover:bg-gray-50 ${currentFont === f.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}">
-                      <input type="radio" name="font" value="${f.id}" ${currentFont === f.id ? 'checked' : ''} onchange="updateSettings({englishFont: '${f.id}'})">
-                      <span style="font-family: '${f.id}', sans-serif;" class="text-lg">${f.sample}</span>
-                      <span class="text-sm text-gray-500">${f.name}</span>
-                    </label>
-                  `).join('')}
-                </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">英文字體</h4>
+                <select class="w-full p-2 border-2 border-black rounded" onchange="updateSettings({englishFont: this.value})">
+                  ${AVAILABLE_FONTS.map(f => `<option value="${f.id}" ${currentFont === f.id ? 'selected' : ''} style="font-family: '${f.id}'">${f.name}</option>`).join('')}
+                </select>
               </div>
               <div>
-                <h4 class="font-bold mb-3">背景顏色</h4>
-                <input type="color" value="${bg.color || '#fcfcfc'}" class="w-full h-12 cursor-pointer" onchange="updateBackground({color: this.value})">
+                <h4 class="font-bold mb-2 text-sm">背景顏色</h4>
+                <input type="color" value="${bg.color || '#fcfcfc'}" class="w-full h-10 cursor-pointer" onchange="updateBackground({color: this.value})">
               </div>
               <div>
-                <h4 class="font-bold mb-3">背景圖片網址</h4>
-                <input type="text" value="${bg.image || ''}" class="w-full p-3 border-2 border-black rounded" placeholder="輸入圖片網址或留空" onchange="updateBackground({image: this.value})">
+                <h4 class="font-bold mb-2 text-sm">背景圖片網址</h4>
+                <input type="text" value="${bg.image || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入圖片網址或留空" onchange="updateBackground({image: this.value})">
               </div>
-              <div class="text-sm text-gray-500">
-                <p>提示：可使用透明材質網站：</p>
-                <p class="text-xs break-all">transparenttextures.com</p>
-              </div>
-              <div>
-                <button onclick="updateBackground({image: ''})" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100">清除背景圖片</button>
+              <button onclick="updateBackground({image: ''})" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除背景圖片</button>
+
+              <div class="border-t pt-4 mt-4">
+                <h4 class="font-bold mb-2 text-sm">儲存設定到網站</h4>
+                <p class="text-xs text-gray-500 mb-2">目前的修改只存在你的瀏覽器。要讓所有人看到，請導出設定並更新 GitHub。</p>
+                <button onclick="copyDataToClipboard()" class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm mb-2">複製設定到剪貼板</button>
+                <button onclick="exportData()" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm mb-2">下載設定檔 (JSON)</button>
+                <button onclick="importData()" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">導入設定檔</button>
               </div>
             </div>
-            <div class="p-6 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v7');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+            <div class="p-4 border-t-2 border-black">
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v8');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
             </div>
           </div>
         `;
@@ -222,25 +259,51 @@
       const el = findElement(activeElementId);
       if (!el) return '';
 
+      const isMedia = el.type === 'media' || el.id === 'hero-media';
+      const isImage = el.type === 'image';
+      const isText = el.type === 'richtext' || el.type === 'text';
+
       return `
         <div class="sidebar open">
-          <div class="p-6 border-b-2 border-black flex justify-between items-center">
-            <h3 class="text-xl font-bold">編輯元素</h3>
+          <div class="p-4 border-b-2 border-black flex justify-between items-center">
+            <h3 class="text-lg font-bold">編輯元素</h3>
             <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
           </div>
-          <div class="p-6 space-y-6 overflow-y-auto flex-1">
-            ${el.type === 'text' ? `
+          <div class="p-4 space-y-4 overflow-y-auto flex-1">
+            ${isText ? `
               <div>
-                <label class="block text-sm font-bold mb-2">文字內容</label>
-                <textarea id="edit-content" class="w-full p-3 border-2 border-black rounded h-32" onchange="updateElement('${el.id}', {content: this.value})">${el.content}</textarea>
+                <label class="block text-sm font-bold mb-2">內容編輯</label>
+                <div class="flex gap-1 mb-2 flex-wrap">
+                  <button class="toolbar-btn" onclick="applyFormat('bold')" title="粗體"><b>B</b></button>
+                  <button class="toolbar-btn" onclick="applyFormat('italic')" title="斜體"><i>I</i></button>
+                  <button class="toolbar-btn" onclick="applyFormat('underline')" title="底線"><u>U</u></button>
+                  <select onchange="applyFontSize(this.value)" class="toolbar-btn">
+                    <option value="">字級</option>
+                    <option value="1">極小</option>
+                    <option value="2">小</option>
+                    <option value="3">中</option>
+                    <option value="4">大</option>
+                    <option value="5">特大</option>
+                    <option value="6">超大</option>
+                    <option value="7">巨大</option>
+                  </select>
+                  <select onchange="applyFontName(this.value)" class="toolbar-btn">
+                    <option value="">字體</option>
+                    ${AVAILABLE_FONTS.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+                  </select>
+                  <input type="color" onchange="applyFontColor(this.value)" class="toolbar-btn w-8 h-7 p-0" title="文字顏色">
+                </select>
+                </div>
+                <div id="rich-editor" class="rich-editor" contenteditable="true" onblur="saveRichText('${el.id}')">${el.content}</div>
+                <p class="text-xs text-gray-400 mt-1">選取文字後點擊工具列按鈕來調整樣式</p>
               </div>
               <div>
-                <label class="block text-sm font-bold mb-2">文字顏色</label>
-                <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-12 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
+                <label class="block text-sm font-bold mb-2">整體文字顏色</label>
+                <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-10 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
               </div>
               <div>
-                <label class="block text-sm font-bold mb-2">字體大小</label>
-                <select class="w-full p-3 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
+                <label class="block text-sm font-bold mb-2">整體字體大小</label>
+                <select class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
                   <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
                   <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
                   <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
@@ -249,10 +312,21 @@
                   <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
                 </select>
               </div>
+            ` : isMedia ? `
+              <div>
+                <label class="block text-sm font-bold mb-2">媒體網址</label>
+                <input type="text" value="${el.content}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="圖片網址 或 YouTube 網址" onchange="updateElement('${el.id}', {content: this.value})">
+                <p class="text-xs text-gray-400 mt-1">支援：圖片網址、YouTube 連結</p>
+              </div>
+              <div class="text-sm text-gray-500">預覽：</div>
+              ${getYouTubeId(el.content) ?
+                `<iframe width="100%" height="150" src="https://www.youtube.com/embed/${getYouTubeId(el.content)}" frameborder="0" class="rounded border-2 border-black"></iframe>` :
+                `<img src="${el.content}" class="w-full rounded border-2 border-black">`
+              }
             ` : `
               <div>
                 <label class="block text-sm font-bold mb-2">圖片網址</label>
-                <input type="text" value="${el.content}" class="w-full p-3 border-2 border-black rounded" onchange="updateElement('${el.id}', {content: this.value})">
+                <input type="text" value="${el.content}" class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {content: this.value})">
               </div>
               <div class="text-sm text-gray-500">預覽：</div>
               <img src="${el.content}" class="w-full rounded border-2 border-black">
@@ -262,11 +336,40 @@
               <input type="range" min="-10" max="10" step="0.5" value="${el.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
             </div>
           </div>
-          <div class="p-6 border-t-2 border-black">
-            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v7');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
-          </div>
         </div>
       `;
+    }
+
+    // ============ 富文本編輯功能 ============
+    function applyFormat(cmd) {
+      document.execCommand(cmd, false, null);
+      document.getElementById('rich-editor')?.focus();
+    }
+
+    function applyFontSize(size) {
+      if (size) {
+        document.execCommand('fontSize', false, size);
+        document.getElementById('rich-editor')?.focus();
+      }
+    }
+
+    function applyFontName(font) {
+      if (font) {
+        document.execCommand('fontName', false, font);
+        document.getElementById('rich-editor')?.focus();
+      }
+    }
+
+    function applyFontColor(color) {
+      document.execCommand('foreColor', false, color);
+      document.getElementById('rich-editor')?.focus();
+    }
+
+    function saveRichText(id) {
+      const editor = document.getElementById('rich-editor');
+      if (editor) {
+        updateElement(id, { content: editor.innerHTML });
+      }
     }
 
     function renderLoginModal() {
@@ -291,7 +394,6 @@
       const d = siteData;
       document.getElementById('app').innerHTML = `
         <div class="${isAdmin ? 'admin-mode' : ''} min-h-screen relative">
-          <!-- 後台按鈕 - 右下角小灰色圓圈 -->
           <div class="fixed bottom-4 right-4 z-[2100] flex flex-col gap-2">
             ${!isAdmin ? `
               <button onclick="showLoginModal()" class="admin-btn" title="後台管理"></button>
@@ -304,25 +406,21 @@
           ${renderLoginModal()}
           ${renderSidebar()}
 
-          <!-- 主要內容 -->
           <main class="content-area max-w-4xl mx-auto py-24 px-8">
-            <!-- Hero -->
             <div class="text-center mb-24">
               ${renderElement(d.hero.title, 'mb-8')}
               ${renderElement(d.hero.subtitle, 'mb-16')}
               <div class="relative inline-block bg-white p-6 sketch-border sketch-shadow" style="transform: rotate(1deg);">
-                ${renderElement(d.hero.mainImage)}
+                ${renderElement(d.hero.mainMedia || d.hero.mainImage)}
               </div>
             </div>
 
-            <!-- Manifesto -->
             <div class="bg-white/50 p-12 sketch-border mb-24 relative space-y-8 shadow-inner">
               <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
               ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
               <div class="absolute -bottom-20 right-0 text-9xl opacity-10 select-none" style="transform: rotate(180deg);">"</div>
             </div>
 
-            <!-- Actions -->
             <div class="mb-24">
               ${renderElement(d.actions.title, 'text-center mb-16')}
               <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -334,7 +432,6 @@
               </div>
             </div>
 
-            <!-- Footer -->
             <div class="text-center pt-24 border-t-4 border-black border-dashed">
               <div class="inline-block px-12 py-8 bg-[#FF00A0] text-white sketch-border sketch-shadow" style="transform: rotate(1deg);">
                 ${renderElement(d.footer.contact)}
@@ -347,12 +444,10 @@
             </div>
           </main>
 
-          <!-- 裝飾 -->
           <div class="fixed inset-0 pointer-events-none -z-20 opacity-20">
             <div class="absolute bottom-40 left-10 w-60 h-2 border-b-2 border-black" style="transform: rotate(-6deg);"></div>
           </div>
 
-          <!-- 右上角裝飾圓圈（可編輯圖片） -->
           <div class="fixed top-20 right-20 z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
             <div
               class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
@@ -369,7 +464,6 @@
       `;
     }
 
-    // ============ 事件處理 ============
     function showLoginModal() {
       document.getElementById('login-modal').style.display = 'flex';
       document.getElementById('password-input').focus();
@@ -382,8 +476,7 @@
 
     function handleLogin(e) {
       e.preventDefault();
-      const pwd = document.getElementById('password-input').value;
-      if (pwd === 'drawme') {
+      if (document.getElementById('password-input').value === 'drawme') {
         isAdmin = true;
         hideLoginModal();
         render();
@@ -403,7 +496,6 @@
       render();
     }
 
-    // 初始化
     applyStyles();
     render();
   </script>
