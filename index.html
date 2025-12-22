@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DrawMeTaiwan - 溫柔視線行動</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @font-face {
+      font-family: 'ChenYuluoyan';
+      src: url('https://cdn.jsdelivr.net/gh/chenyuluoyan/chenyuluoyan@v1.0/fonts/ChenYuluoyan-Thin-v1.0.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+    * { font-family: 'ChenYuluoyan', cursive !important; -webkit-font-smoothing: antialiased; }
+    body {
+      background-color: #fcfcfc;
+      background-image: url('https://www.transparenttextures.com/patterns/handmade-paper.png');
+      color: #1a1a1a;
+      margin: 0; padding: 0; overflow-x: hidden;
+    }
+    .sketch-border { border: 2px solid #1a1a1a; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; }
+    .sketch-shadow { box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.8); }
+    .admin-highlight { outline: 3px dashed #FF00A0 !important; outline-offset: 4px; cursor: pointer; }
+    .admin-highlight:hover { background: rgba(255,0,160,0.1); }
+    .sidebar { width: 350px; background: #fff; border-left: 3px solid #000; height: 100vh; position: fixed; right: 0; top: 0; z-index: 2000; box-shadow: -10px 0 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s ease; }
+    .sidebar.open { transform: translateX(0); }
+    .content-area { transition: margin-right 0.3s ease; }
+    .admin-mode .content-area { margin-right: 350px; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #000; border-radius: 3px; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    // ============ 初始數據 ============
+    const INITIAL_DATA = {
+      hero: {
+        title: { id: 'hero-title', type: 'text', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
+        subtitle: { id: 'hero-subtitle', type: 'text', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
+        mainImage: { id: 'hero-image', type: 'image', content: 'https://picsum.photos/seed/drawme/800/800', style: { rotation: 0 } }
+      },
+      manifesto: {
+        paragraphs: [
+          { id: 'p1', type: 'text', content: '最近搭捷運時，你是否也感覺到了那股緊繃？身為一個藝術家看到整個台灣社會，開始草木皆兵的狀態相當難受。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0 } },
+          { id: 'p2', type: 'text', content: '我希望人們開始尋找的不是敵人，而是有趣的經歷與朋友、夥伴。', style: { fontSize: 'text-xl', color: '#000000', rotation: 0.5 } },
+          { id: 'p3', type: 'text', content: '這不是繪畫比賽，這是一個整體社會關於「看見」的重新練習。當我們願意花 5 分鐘去觀察一個陌生人，我們就無法再把對方視為冰冷的「威脅」。', style: { fontSize: 'text-xl', color: '#000000', rotation: -0.5 } }
+        ]
+      },
+      actions: {
+        title: { id: 'actions-title', type: 'text', content: '如何參與？', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
+        items: [
+          { id: 'a1', type: 'text', content: '索取胸章：我將自費製作並發送，索取地點整理於此。', style: { fontSize: 'text-lg', color: '#000000', rotation: 0 } },
+          { id: 'a2', type: 'text', content: '自行列印：我無償公開圖檔，歡迎自行下載列印。', style: { fontSize: 'text-lg', color: '#000000', rotation: 1 } },
+          { id: 'a3', type: 'text', content: '開始觀察：放下手機，拿起筆。上傳 Tag #DrawMeTaiwan。', style: { fontSize: 'text-lg', color: '#000000', rotation: -1 } }
+        ]
+      },
+      footer: {
+        contact: { id: 'footer-contact', type: 'text', content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。', style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0 } }
+      }
+    };
+
+    // ============ 狀態管理 ============
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v4')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let isAdmin = false;
+    let activeElementId = null;
+
+    function saveData() {
+      localStorage.setItem('drawme_data_v4', JSON.stringify(siteData));
+      render();
+    }
+
+    function findElement(id, obj = siteData) {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.id === id) return obj;
+      for (const key of Object.keys(obj)) {
+        const found = findElement(id, obj[key]);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function updateElement(id, updates) {
+      const el = findElement(id);
+      if (el) {
+        Object.assign(el, updates);
+        if (updates.style) el.style = { ...el.style, ...updates.style };
+        saveData();
+      }
+    }
+
+    // ============ 渲染函數 ============
+    function renderElement(el, extraClass = '') {
+      if (!el) return '';
+      const adminClass = isAdmin ? 'admin-highlight' : '';
+      const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
+      const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
+      const color = el.style?.color ? `color: ${el.style.color};` : '';
+      const onClick = isAdmin ? `onclick="selectElement('${el.id}')"` : '';
+
+      if (el.type === 'image') {
+        return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+      }
+      return `<div class="${el.style?.fontSize || ''} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color}" ${onClick}>${el.content}</div>`;
+    }
+
+    function renderSidebar() {
+      if (!isAdmin || !activeElementId) return '';
+      const el = findElement(activeElementId);
+      if (!el) return '';
+
+      return `
+        <div class="sidebar ${isAdmin && activeElementId ? 'open' : ''}">
+          <div class="p-6 border-b-2 border-black flex justify-between items-center">
+            <h3 class="text-xl font-bold">編輯元素</h3>
+            <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+          </div>
+          <div class="p-6 space-y-6 overflow-y-auto flex-1">
+            ${el.type === 'text' ? `
+              <div>
+                <label class="block text-sm font-bold mb-2">文字內容</label>
+                <textarea id="edit-content" class="w-full p-3 border-2 border-black rounded h-32" onchange="updateElement('${el.id}', {content: this.value})">${el.content}</textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">文字顏色</label>
+                <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-12 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">字體大小</label>
+                <select class="w-full p-3 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
+                  <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
+                  <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
+                  <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
+                  <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
+                  <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
+                  <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
+                </select>
+              </div>
+            ` : `
+              <div>
+                <label class="block text-sm font-bold mb-2">圖片網址</label>
+                <input type="text" value="${el.content}" class="w-full p-3 border-2 border-black rounded" onchange="updateElement('${el.id}', {content: this.value})">
+              </div>
+              <div class="text-sm text-gray-500">預覽：</div>
+              <img src="${el.content}" class="w-full rounded border-2 border-black">
+            `}
+            <div>
+              <label class="block text-sm font-bold mb-2">旋轉角度: ${el.style?.rotation || 0}°</label>
+              <input type="range" min="-10" max="10" step="0.5" value="${el.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
+            </div>
+          </div>
+          <div class="p-6 border-t-2 border-black">
+            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v4');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLoginModal() {
+      return `
+        <div class="modal-bg" id="login-modal" style="display:none;">
+          <form onsubmit="handleLogin(event)" class="bg-white sketch-border sketch-shadow p-10 max-w-sm w-full space-y-6" style="transform: rotate(1deg);">
+            <div class="text-center">
+              <h2 class="text-3xl font-bold mb-2">後台登入</h2>
+              <p class="text-sm opacity-60">請輸入管理密碼以開啟編輯模式</p>
+            </div>
+            <input type="password" id="password-input" placeholder="請輸入密碼..." class="w-full p-4 border-2 border-black rounded text-center text-xl outline-none focus:ring-4 focus:ring-yellow-200">
+            <div class="flex gap-4">
+              <button type="submit" class="flex-1 bg-black text-white py-3 rounded-full font-bold hover:bg-gray-800">進入</button>
+              <button type="button" onclick="hideLoginModal()" class="flex-1 border-2 border-black py-3 rounded-full font-bold hover:bg-gray-100">取消</button>
+            </div>
+          </form>
+        </div>
+      `;
+    }
+
+    function render() {
+      const d = siteData;
+      document.getElementById('app').innerHTML = `
+        <div class="${isAdmin ? 'admin-mode' : ''} min-h-screen relative">
+          <!-- 後台按鈕 -->
+          <div class="fixed top-6 left-6 z-[2100]">
+            ${!isAdmin ? `
+              <button onclick="showLoginModal()" class="bg-white border-2 border-black px-6 py-2 rounded-full sketch-shadow font-bold hover:bg-yellow-200 transition-colors">後台管理</button>
+            ` : `
+              <button onclick="exitAdmin()" class="bg-black text-white px-6 py-2 rounded-full sketch-shadow font-bold hover:bg-gray-800 transition-colors">退出編輯</button>
+            `}
+          </div>
+
+          ${renderLoginModal()}
+          ${renderSidebar()}
+
+          <!-- 主要內容 -->
+          <main class="content-area max-w-4xl mx-auto py-24 px-8">
+            <!-- Hero -->
+            <div class="text-center mb-24">
+              ${renderElement(d.hero.title, 'mb-8')}
+              ${renderElement(d.hero.subtitle, 'mb-16')}
+              <div class="relative inline-block bg-white p-6 sketch-border sketch-shadow" style="transform: rotate(1deg);">
+                ${renderElement(d.hero.mainImage)}
+              </div>
+            </div>
+
+            <!-- Manifesto -->
+            <div class="bg-white/50 p-12 sketch-border mb-24 relative space-y-8 shadow-inner">
+              <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
+              ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
+              <div class="absolute -bottom-20 right-0 text-9xl opacity-10 select-none" style="transform: rotate(180deg);">"</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mb-24">
+              ${renderElement(d.actions.title, 'text-center mb-16')}
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                ${d.actions.items.map((item, idx) => `
+                  <div class="p-8 bg-white sketch-border sketch-shadow" style="transform: rotate(${idx % 2 === 0 ? 1 : -1}deg);">
+                    ${renderElement(item)}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center pt-24 border-t-4 border-black border-dashed">
+              <div class="inline-block px-12 py-8 bg-[#FF00A0] text-white sketch-border sketch-shadow" style="transform: rotate(1deg);">
+                ${renderElement(d.footer.contact)}
+              </div>
+              <div class="mt-16 flex justify-center gap-6 text-xl opacity-60">
+                <span>#DrawMeTaiwan</span>
+                <span>#社會雕塑</span>
+                <span>#溫柔視線行動</span>
+              </div>
+            </div>
+          </main>
+
+          <!-- 裝飾 -->
+          <div class="fixed inset-0 pointer-events-none -z-20 opacity-20">
+            <div class="absolute top-20 right-20 w-40 h-40 sketch-border rounded-full" style="transform: rotate(12deg);"></div>
+            <div class="absolute bottom-40 left-10 w-60 h-2 border-b-2 border-black" style="transform: rotate(-6deg);"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ============ 事件處理 ============
+    function showLoginModal() {
+      document.getElementById('login-modal').style.display = 'flex';
+      document.getElementById('password-input').focus();
+    }
+
+    function hideLoginModal() {
+      document.getElementById('login-modal').style.display = 'none';
+      document.getElementById('password-input').value = '';
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('password-input').value;
+      if (pwd === 'drawme') {
+        isAdmin = true;
+        hideLoginModal();
+        render();
+      } else {
+        alert('密碼錯誤！');
+      }
+    }
+
+    function exitAdmin() {
+      isAdmin = false;
+      activeElementId = null;
+      render();
+    }
+
+    function selectElement(id) {
+      activeElementId = id;
+      render();
+    }
+
+    // 初始渲染
+    render();
+  </script>
+</body>
+</html>
