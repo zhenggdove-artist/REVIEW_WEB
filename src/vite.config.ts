@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      base: '/REVIEW_WEB/',  // GitHub Pages 路徑
       server: {
         port: 3000,
         host: '0.0.0.0',
@@ -18,6 +19,10 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        outDir: '../docs',  // 輸出到 docs 資料夾供 GitHub Pages 使用
+        emptyOutDir: true,
       }
     };
 });
