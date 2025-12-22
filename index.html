@@ -53,12 +53,14 @@
       decoration: { circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } } },
       // 各區塊框線樣式
       boxStyles: {
-        mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff' },
-        manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: 'rgba(255,255,255,0.5)' },
-        actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff' },
-        footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0' },
+        mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)' },
+        manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: 'rgba(255,255,255,0.5)', shadowColor: 'rgba(0,0,0,0.8)' },
+        actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)' },
+        footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0', shadowColor: 'rgba(0,0,0,0.8)' },
         dashedBorder: { color: '#000000', width: 4, dashLength: 10, gapLength: 6 }
       },
+      // Instagram 連結
+      instagramLink: 'https://www.instagram.com/gg_dove/',
       hero: {
         title: { id: 'hero-title', type: 'richtext', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
         subtitle: { id: 'hero-subtitle', type: 'richtext', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
@@ -88,10 +90,17 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v10')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v11')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
+    // 補充缺少的 shadowColor
+    ['mediaBox', 'manifestoBox', 'actionBox', 'footerBox'].forEach(key => {
+      if (siteData.boxStyles[key] && !siteData.boxStyles[key].shadowColor) {
+        siteData.boxStyles[key].shadowColor = 'rgba(0,0,0,0.8)';
+      }
+    });
+    if (!siteData.instagramLink) siteData.instagramLink = INITIAL_DATA.instagramLink;
     // 舊版資料遷移：mainMedia -> mediaItems
     if (siteData.hero.mainMedia && !siteData.hero.mediaItems) {
       siteData.hero.mediaItems = [siteData.hero.mainMedia];
@@ -105,9 +114,14 @@
     let savedSelection = null; // 保存選取範圍
 
     function saveData() {
-      localStorage.setItem('drawme_data_v10', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v11', JSON.stringify(siteData));
       applyStyles();
       render();
+    }
+
+    function updateInstagramLink(url) {
+      siteData.instagramLink = url;
+      saveData();
     }
 
     function applyStyles() {
@@ -335,7 +349,7 @@
               </div>
             </div>
             <div class="p-4 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v10');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v11');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
             </div>
           </div>
         `;
@@ -366,6 +380,10 @@
                   <div>
                     <label class="text-xs">背景顏色</label>
                     <input type="color" value="${boxStyle.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影顏色</label>
+                    <input type="text" value="${boxStyle.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('mediaBox', {shadowColor: this.value})">
                   </div>
                 </div>
               </div>
@@ -427,7 +445,7 @@
                   </div>
                 </div>
               </div>
-              <div>
+              <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">聯絡框樣式</h4>
                 <div class="space-y-2">
                   <div>
@@ -442,7 +460,16 @@
                     <label class="text-xs">背景顏色</label>
                     <input type="color" value="${fs.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {bgColor: this.value})">
                   </div>
+                  <div>
+                    <label class="text-xs">陰影顏色</label>
+                    <input type="text" value="${fs.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('footerBox', {shadowColor: this.value})">
+                  </div>
                 </div>
+              </div>
+              <div>
+                <h4 class="font-bold mb-2 text-sm">Instagram 連結</h4>
+                <input type="text" value="${siteData.instagramLink || ''}" class="w-full p-2 border border-gray-300 rounded text-xs" placeholder="https://www.instagram.com/yourname/" onchange="updateInstagramLink(this.value)">
+                <p class="text-xs text-gray-400 mt-1">點擊聯絡框會開啟此連結</p>
               </div>
             </div>
           </div>
@@ -472,6 +499,10 @@
                 <input type="text" value="${ms.bgColor}" class="w-full p-2 border border-gray-300 rounded text-sm" placeholder="例: rgba(255,255,255,0.5)" onchange="updateBoxStyle('manifestoBox', {bgColor: this.value})">
                 <p class="text-xs text-gray-400 mt-1">支援 rgba 透明色，例: rgba(255,255,255,0.5)</p>
               </div>
+              <div>
+                <label class="text-xs">陰影顏色</label>
+                <input type="text" value="${ms.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('manifestoBox', {shadowColor: this.value})">
+              </div>
             </div>
           </div>
         `;
@@ -498,6 +529,10 @@
               <div>
                 <label class="text-xs">背景顏色</label>
                 <input type="color" value="${as.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {bgColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">陰影顏色</label>
+                <input type="text" value="${as.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('actionBox', {shadowColor: this.value})">
               </div>
             </div>
           </div>
@@ -620,7 +655,7 @@
         const el = findElement(id);
         if (el) {
           el.content = editor.innerHTML;
-          localStorage.setItem('drawme_data_v10', JSON.stringify(siteData));
+          localStorage.setItem('drawme_data_v11', JSON.stringify(siteData));
         }
       }
     }
@@ -635,6 +670,7 @@
       const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
       const borderStyle = `border: ${boxStyle.borderWidth}px solid ${boxStyle.borderColor};`;
       const bgStyle = `background: ${boxStyle.bgColor};`;
+      const shadowStyle = `box-shadow: 6px 6px 0px 0px ${boxStyle.shadowColor || 'rgba(0,0,0,0.8)'};`;
 
       const youtubeId = getYouTubeId(currentItem.content);
       let mediaContent = '';
@@ -648,8 +684,8 @@
 
       const showNav = items.length > 1;
       return `
-        <div class="media-container sketch-shadow relative cursor-pointer"
-             style="${borderStyle} ${bgStyle} border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
+        <div class="media-container relative cursor-pointer"
+             style="${borderStyle} ${bgStyle} ${shadowStyle} border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
              onclick="${isAdmin ? '' : 'nextMedia()'}">
           ${mediaContent}
           ${showNav ? `
@@ -713,9 +749,10 @@
 
             ${(() => {
               const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
+              const msShadow = `box-shadow: 6px 6px 0px 0px ${ms.shadowColor || 'rgba(0,0,0,0.8)'};`;
               return `
-                <div class="p-12 mb-24 relative space-y-8 shadow-inner sketch-shadow ${isAdmin ? 'admin-highlight' : ''}"
-                     style="background: ${ms.bgColor}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;"
+                <div class="p-12 mb-24 relative space-y-8 shadow-inner ${isAdmin ? 'admin-highlight' : ''}"
+                     style="background: ${ms.bgColor}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${msShadow}"
                      ${isAdmin ? 'onclick="selectElement(\'box-manifesto\')"' : ''}>
                   <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
                   ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
@@ -729,9 +766,10 @@
               <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
                 ${(() => {
                   const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
+                  const asShadow = `box-shadow: 6px 6px 0px 0px ${as.shadowColor || 'rgba(0,0,0,0.8)'};`;
                   return d.actions.items.map((item, idx) => `
-                    <div class="p-8 sketch-shadow ${isAdmin ? 'admin-highlight' : ''}"
-                         style="background: ${as.bgColor}; border: ${as.borderWidth}px solid ${as.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(${idx % 2 === 0 ? 1 : -1}deg);"
+                    <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
+                         style="background: ${as.bgColor}; border: ${as.borderWidth}px solid ${as.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(${idx % 2 === 0 ? 1 : -1}deg); ${asShadow}"
                          ${isAdmin ? 'onclick="event.stopPropagation();selectElement(\'box-action\')"' : ''}>
                       ${renderElement(item)}
                     </div>
@@ -743,13 +781,14 @@
             ${(() => {
               const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
               const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
-              const dashStyle = `border-top: ${db.width}px dashed ${db.color}; background-image: linear-gradient(to right, ${db.color} ${db.dashLength}px, transparent ${db.dashLength}px); background-size: ${db.dashLength + db.gapLength}px ${db.width}px; background-repeat: repeat-x; background-position: 0 0;`;
+              const fsShadow = `box-shadow: 6px 6px 0px 0px ${fs.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const igLink = siteData.instagramLink || '';
               return `
                 <div class="text-center pt-24 ${isAdmin ? 'admin-highlight' : ''}" style="border-top: ${db.width}px dashed ${db.color};" ${isAdmin ? 'onclick="selectElement(\'box-dashed\')"' : ''}>
-                  <div class="content-box text-white sketch-shadow"
-                       style="background: ${fs.bgColor}; border: ${fs.borderWidth}px solid ${fs.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);">
+                  <a href="${igLink}" target="_blank" rel="noopener noreferrer" class="content-box text-white inline-block cursor-pointer hover:scale-105 transition-transform"
+                       style="background: ${fs.bgColor}; border: ${fs.borderWidth}px solid ${fs.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg); ${fsShadow} text-decoration: none;">
                     ${renderElement(d.footer.contact)}
-                  </div>
+                  </a>
               `;
             })()}
               <div class="mt-16 flex justify-center gap-6 text-xl opacity-60">
