@@ -52,6 +52,9 @@
         color: '#fcfcfc',
         image: 'https://www.transparenttextures.com/patterns/handmade-paper.png'
       },
+      decoration: {
+        circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } }
+      },
       hero: {
         title: { id: 'hero-title', type: 'text', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
         subtitle: { id: 'hero-subtitle', type: 'text', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
@@ -78,12 +81,14 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v5')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v6')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    // 確保 decoration 存在
+    if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     let isAdmin = false;
     let activeElementId = null;
 
     function saveData() {
-      localStorage.setItem('drawme_data_v5', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v6', JSON.stringify(siteData));
       applyBackground();
       render();
     }
@@ -163,7 +168,7 @@
               </div>
             </div>
             <div class="p-6 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v5');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v6');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
             </div>
           </div>
         `;
@@ -214,7 +219,7 @@
             </div>
           </div>
           <div class="p-6 border-t-2 border-black">
-            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v5');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
+            <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v6');location.reload();}" class="w-full py-3 bg-red-500 text-white rounded-full font-bold hover:bg-red-600">重置所有內容</button>
           </div>
         </div>
       `;
@@ -298,9 +303,23 @@
             </div>
           </main>
 
-          <!-- 裝飾 - 只保留左下線條 -->
+          <!-- 裝飾 -->
           <div class="fixed inset-0 pointer-events-none -z-20 opacity-20">
             <div class="absolute bottom-40 left-10 w-60 h-2 border-b-2 border-black" style="transform: rotate(-6deg);"></div>
+          </div>
+
+          <!-- 右上角裝飾圓圈（可編輯圖片） -->
+          <div class="fixed top-20 right-20 z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
+            <div
+              class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
+              style="transform: rotate(${d.decoration?.circleImage?.style?.rotation || 12}deg);"
+              ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
+            >
+              ${d.decoration?.circleImage?.content ?
+                `<img src="${d.decoration.circleImage.content}" class="w-full h-full object-cover" alt="裝飾圖片">` :
+                `<div class="w-full h-full bg-gray-300"></div>`
+              }
+            </div>
           </div>
         </div>
       `;
