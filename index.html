@@ -24,11 +24,14 @@
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 3000; }
     .admin-btn { width: 25px; height: 25px; border-radius: 50%; background: #888; border: none; cursor: pointer; transition: all 0.3s; opacity: 0.5; }
     .admin-btn:hover { opacity: 1; transform: scale(1.2); }
-    .rich-editor { border: 2px solid #000; border-radius: 4px; min-height: 120px; padding: 12px; outline: none; }
+    .rich-editor { border: 2px solid #000; border-radius: 4px; min-height: 120px; padding: 12px; outline: none; background: #fff; }
     .rich-editor:focus { border-color: #FF00A0; }
-    .toolbar-btn { padding: 4px 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; }
+    .toolbar-btn { padding: 6px 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; font-size: 12px; border-radius: 3px; }
     .toolbar-btn:hover { background: #f0f0f0; }
-    .toolbar-btn.active { background: #FF00A0; color: white; }
+    .toolbar-btn:active { background: #ddd; }
+    /* 自適應內容的白色底框 */
+    .media-container { display: inline-block; background: white; padding: 24px; max-width: 100%; }
+    .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
   </style>
 </head>
 <body>
@@ -74,15 +77,16 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v8')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v9')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     if (!siteData.hero.mainMedia) siteData.hero.mainMedia = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mainMedia));
     let isAdmin = false;
     let activeElementId = null;
+    let savedSelection = null; // 保存選取範圍
 
     function saveData() {
-      localStorage.setItem('drawme_data_v8', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v9', JSON.stringify(siteData));
       applyStyles();
       render();
     }
@@ -124,6 +128,22 @@
       saveData();
     }
 
+    // ============ 選取範圍保存/恢復 ============
+    function saveSelection() {
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        savedSelection = sel.getRangeAt(0).cloneRange();
+      }
+    }
+
+    function restoreSelection() {
+      if (savedSelection) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedSelection);
+      }
+    }
+
     // ============ 導出/導入功能 ============
     function exportData() {
       const dataStr = JSON.stringify(siteData, null, 2);
@@ -134,13 +154,13 @@
       a.download = 'site-data.json';
       a.click();
       URL.revokeObjectURL(url);
-      alert('設定已導出！\\n\\n更新網站步驟：\\n1. 用文字編輯器打開 index.html\\n2. 找到 INITIAL_DATA = {...}\\n3. 用導出的 JSON 內容替換\\n4. 提交並推送到 GitHub');
+      alert('設定已導出！\n\n更新網站步驟：\n1. 用文字編輯器打開 index.html\n2. 找到 INITIAL_DATA = {...}\n3. 用導出的 JSON 內容替換\n4. 提交並推送到 GitHub');
     }
 
     function copyDataToClipboard() {
       const dataStr = JSON.stringify(siteData, null, 2);
       navigator.clipboard.writeText(dataStr).then(() => {
-        alert('設定已複製到剪貼板！\\n\\n更新網站步驟：\\n1. 用文字編輯器打開 index.html\\n2. 找到 const INITIAL_DATA = {...};\\n3. 用複製的內容替換 {...} 部分\\n4. 儲存檔案\\n5. git add . && git commit -m "更新內容" && git push');
+        alert('設定已複製到剪貼板！\n\n更新網站步驟：\n1. 用文字編輯器打開 index.html\n2. 找到 const INITIAL_DATA = {...};\n3. 用複製的內容替換 {...} 部分\n4. 儲存檔案\n5. git add . && git commit -m "更新內容" && git push');
       });
     }
 
@@ -168,12 +188,9 @@
 
     // ============ YouTube 解析 ============
     function getYouTubeId(url) {
+      if (!url) return null;
       const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       return match ? match[1] : null;
-    }
-
-    function isVideoUrl(url) {
-      return getYouTubeId(url) || url.includes('.mp4') || url.includes('.webm');
     }
 
     // ============ 渲染函數 ============
@@ -190,7 +207,7 @@
           <iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>
         </div>`;
       }
-      if (el.content.includes('.mp4') || el.content.includes('.webm')) {
+      if (el.content && (el.content.includes('.mp4') || el.content.includes('.webm'))) {
         return `<video src="${el.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}></video>`;
       }
       return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
@@ -239,7 +256,6 @@
                 <input type="text" value="${bg.image || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入圖片網址或留空" onchange="updateBackground({image: this.value})">
               </div>
               <button onclick="updateBackground({image: ''})" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除背景圖片</button>
-
               <div class="border-t pt-4 mt-4">
                 <h4 class="font-bold mb-2 text-sm">儲存設定到網站</h4>
                 <p class="text-xs text-gray-500 mb-2">目前的修改只存在你的瀏覽器。要讓所有人看到，請導出設定並更新 GitHub。</p>
@@ -249,7 +265,7 @@
               </div>
             </div>
             <div class="p-4 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v8');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v9');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
             </div>
           </div>
         `;
@@ -273,29 +289,29 @@
             ${isText ? `
               <div>
                 <label class="block text-sm font-bold mb-2">內容編輯</label>
-                <div class="flex gap-1 mb-2 flex-wrap">
-                  <button class="toolbar-btn" onclick="applyFormat('bold')" title="粗體"><b>B</b></button>
-                  <button class="toolbar-btn" onclick="applyFormat('italic')" title="斜體"><i>I</i></button>
-                  <button class="toolbar-btn" onclick="applyFormat('underline')" title="底線"><u>U</u></button>
-                  <select onchange="applyFontSize(this.value)" class="toolbar-btn">
-                    <option value="">字級</option>
-                    <option value="1">極小</option>
-                    <option value="2">小</option>
-                    <option value="3">中</option>
-                    <option value="4">大</option>
-                    <option value="5">特大</option>
-                    <option value="6">超大</option>
-                    <option value="7">巨大</option>
-                  </select>
-                  <select onchange="applyFontName(this.value)" class="toolbar-btn">
-                    <option value="">字體</option>
-                    ${AVAILABLE_FONTS.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
-                  </select>
-                  <input type="color" onchange="applyFontColor(this.value)" class="toolbar-btn w-8 h-7 p-0" title="文字顏色">
-                </select>
+                <p class="text-xs text-gray-500 mb-2">先選取文字，再點下方按鈕套用樣式</p>
+                <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('bold')" title="粗體"><b>B</b></button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('italic')" title="斜體"><i>I</i></button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('underline')" title="底線"><u>U</u></button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('1')" title="極小字">1</button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('3')" title="小字">3</button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('5')" title="大字">5</button>
+                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('7')" title="巨大">7</button>
                 </div>
-                <div id="rich-editor" class="rich-editor" contenteditable="true" onblur="saveRichText('${el.id}')">${el.content}</div>
-                <p class="text-xs text-gray-400 mt-1">選取文字後點擊工具列按鈕來調整樣式</p>
+                <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
+                  ${AVAILABLE_FONTS.map(f => `
+                    <button class="toolbar-btn text-xs" onmousedown="event.preventDefault();applyFontNameCmd('${f.id}')" title="${f.name}" style="font-family:'${f.id}'">${f.name.substring(0,4)}</button>
+                  `).join('')}
+                </div>
+                <div class="flex gap-2 mb-2 items-center bg-gray-100 p-2 rounded">
+                  <span class="text-xs">選取文字顏色:</span>
+                  <input type="color" id="text-color-picker" value="#000000" class="w-8 h-8 cursor-pointer border-0" onchange="applyFontColorCmd(this.value)">
+                </div>
+                <div id="rich-editor" class="rich-editor" contenteditable="true"
+                     onmouseup="saveSelection()"
+                     onkeyup="saveSelection()"
+                     onblur="saveRichText('${el.id}')">${el.content}</div>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">整體文字顏色</label>
@@ -340,35 +356,39 @@
       `;
     }
 
-    // ============ 富文本編輯功能 ============
+    // ============ 富文本編輯功能（修正版）============
     function applyFormat(cmd) {
+      restoreSelection();
       document.execCommand(cmd, false, null);
-      document.getElementById('rich-editor')?.focus();
+      saveSelection();
     }
 
-    function applyFontSize(size) {
-      if (size) {
-        document.execCommand('fontSize', false, size);
-        document.getElementById('rich-editor')?.focus();
-      }
+    function applyFontSizeCmd(size) {
+      restoreSelection();
+      document.execCommand('fontSize', false, size);
+      saveSelection();
     }
 
-    function applyFontName(font) {
-      if (font) {
-        document.execCommand('fontName', false, font);
-        document.getElementById('rich-editor')?.focus();
-      }
+    function applyFontNameCmd(font) {
+      restoreSelection();
+      document.execCommand('fontName', false, font);
+      saveSelection();
     }
 
-    function applyFontColor(color) {
+    function applyFontColorCmd(color) {
+      restoreSelection();
       document.execCommand('foreColor', false, color);
-      document.getElementById('rich-editor')?.focus();
+      saveSelection();
     }
 
     function saveRichText(id) {
       const editor = document.getElementById('rich-editor');
       if (editor) {
-        updateElement(id, { content: editor.innerHTML });
+        const el = findElement(id);
+        if (el) {
+          el.content = editor.innerHTML;
+          localStorage.setItem('drawme_data_v9', JSON.stringify(siteData));
+        }
       }
     }
 
@@ -410,7 +430,7 @@
             <div class="text-center mb-24">
               ${renderElement(d.hero.title, 'mb-8')}
               ${renderElement(d.hero.subtitle, 'mb-16')}
-              <div class="relative inline-block bg-white p-6 sketch-border sketch-shadow" style="transform: rotate(1deg);">
+              <div class="media-container sketch-border sketch-shadow" style="transform: rotate(1deg);">
                 ${renderElement(d.hero.mainMedia || d.hero.mainImage)}
               </div>
             </div>
@@ -433,7 +453,7 @@
             </div>
 
             <div class="text-center pt-24 border-t-4 border-black border-dashed">
-              <div class="inline-block px-12 py-8 bg-[#FF00A0] text-white sketch-border sketch-shadow" style="transform: rotate(1deg);">
+              <div class="content-box bg-[#FF00A0] text-white sketch-border sketch-shadow" style="transform: rotate(1deg);">
                 ${renderElement(d.footer.contact)}
               </div>
               <div class="mt-16 flex justify-center gap-6 text-xl opacity-60">
