@@ -56,14 +56,16 @@
         mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)' },
         manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: 'rgba(255,255,255,0.5)', shadowColor: 'rgba(0,0,0,0.8)' },
         actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)' },
+        locationsBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FFF8E7', shadowColor: 'rgba(0,0,0,0.8)' },
+        supportersBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#E7F0FF', shadowColor: 'rgba(0,0,0,0.8)' },
         footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0', shadowColor: 'rgba(0,0,0,0.8)' },
         dashedBorder: { color: '#000000', width: 4, dashLength: 10, gapLength: 6 }
       },
       // Instagram 連結
       instagramLink: 'https://www.instagram.com/gg_dove/',
       hero: {
-        title: { id: 'hero-title', type: 'richtext', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
-        subtitle: { id: 'hero-subtitle', type: 'richtext', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
+        title: { id: 'hero-title', type: 'richtext', content: 'DRAW ME TAIWAN', displayMode: 'text', imageUrl: '', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
+        subtitle: { id: 'hero-subtitle', type: 'richtext', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', displayMode: 'text', imageUrl: '', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
         mediaItems: [
           { id: 'hero-media-0', type: 'media', content: 'https://picsum.photos/seed/drawme/800/800', mediaType: 'image' }
         ],
@@ -77,11 +79,30 @@
         ]
       },
       actions: {
-        title: { id: 'actions-title', type: 'richtext', content: '如何參與？', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
+        title: { id: 'actions-title', type: 'richtext', content: '如何參與？', displayMode: 'text', imageUrl: '', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
         items: [
           { id: 'a1', type: 'richtext', content: '索取胸章：我將自費製作並發送，索取地點整理於此。', style: { fontSize: 'text-lg', color: '#000000', rotation: 0 } },
           { id: 'a2', type: 'richtext', content: '自行列印：我無償公開圖檔，歡迎自行下載列印。', style: { fontSize: 'text-lg', color: '#000000', rotation: 1 } },
           { id: 'a3', type: 'richtext', content: '開始觀察：放下手機，拿起筆。上傳 Tag #DrawMeTaiwan。', style: { fontSize: 'text-lg', color: '#000000', rotation: -1 } }
+        ]
+      },
+      locations: {
+        title: { id: 'locations-title', type: 'richtext', content: '索取徽章地點', displayMode: 'text', imageUrl: '', style: { fontSize: 'text-4xl', color: '#000000', rotation: -1 } },
+        items: [
+          { id: 'loc1', name: '台北車站', address: '台北市中正區北平西路3號', note: '12/28 快閃活動現場' },
+          { id: 'loc2', name: '某某咖啡廳', address: '台北市大安區...', note: '營業時間內可索取' },
+          { id: 'loc3', name: '某某書店', address: '台北市信義區...', note: '數量有限' }
+        ]
+      },
+      supporters: {
+        title: { id: 'supporters-title', type: 'richtext', content: '贊助廠商 / 參與藝術家', displayMode: 'text', imageUrl: '', style: { fontSize: 'text-4xl', color: '#000000', rotation: 1 } },
+        sponsors: [
+          { id: 'sp1', name: '贊助商名稱', logo: 'https://picsum.photos/seed/sponsor1/200/100', url: '' },
+          { id: 'sp2', name: '贊助商名稱2', logo: 'https://picsum.photos/seed/sponsor2/200/100', url: '' }
+        ],
+        artists: [
+          { id: 'art1', name: 'GGdove', avatar: 'https://picsum.photos/seed/artist1/100/100', url: 'https://www.instagram.com/gg_dove/' },
+          { id: 'art2', name: '藝術家名稱', avatar: 'https://picsum.photos/seed/artist2/100/100', url: '' }
         ]
       },
       footer: {
@@ -90,17 +111,22 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v11')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v13')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
-    // 補充缺少的 shadowColor
-    ['mediaBox', 'manifestoBox', 'actionBox', 'footerBox'].forEach(key => {
-      if (siteData.boxStyles[key] && !siteData.boxStyles[key].shadowColor) {
+    // 補充缺少的 shadowColor 和新區塊樣式
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox'].forEach(key => {
+      if (!siteData.boxStyles[key]) {
+        siteData.boxStyles[key] = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles[key]));
+      } else if (!siteData.boxStyles[key].shadowColor) {
         siteData.boxStyles[key].shadowColor = 'rgba(0,0,0,0.8)';
       }
     });
     if (!siteData.instagramLink) siteData.instagramLink = INITIAL_DATA.instagramLink;
+    // 新增地點和贊助者區塊
+    if (!siteData.locations) siteData.locations = JSON.parse(JSON.stringify(INITIAL_DATA.locations));
+    if (!siteData.supporters) siteData.supporters = JSON.parse(JSON.stringify(INITIAL_DATA.supporters));
     // 舊版資料遷移：mainMedia -> mediaItems
     if (siteData.hero.mainMedia && !siteData.hero.mediaItems) {
       siteData.hero.mediaItems = [siteData.hero.mainMedia];
@@ -114,13 +140,68 @@
     let savedSelection = null; // 保存選取範圍
 
     function saveData() {
-      localStorage.setItem('drawme_data_v11', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v13', JSON.stringify(siteData));
       applyStyles();
       render();
     }
 
     function updateInstagramLink(url) {
       siteData.instagramLink = url;
+      saveData();
+    }
+
+    // ============ 地點管理 ============
+    function addLocation() {
+      const newId = 'loc-' + Date.now();
+      siteData.locations.items.push({ id: newId, name: '新地點', address: '地址...', note: '備註...' });
+      saveData();
+    }
+
+    function updateLocation(index, field, value) {
+      siteData.locations.items[index][field] = value;
+      saveData();
+    }
+
+    function removeLocation(index) {
+      if (siteData.locations.items.length > 1) {
+        siteData.locations.items.splice(index, 1);
+        saveData();
+      } else {
+        alert('至少需要保留一個地點！');
+      }
+    }
+
+    // ============ 贊助商管理 ============
+    function addSponsor() {
+      const newId = 'sp-' + Date.now();
+      siteData.supporters.sponsors.push({ id: newId, name: '贊助商名稱', logo: 'https://picsum.photos/seed/' + Date.now() + '/200/100', url: '' });
+      saveData();
+    }
+
+    function updateSponsor(index, field, value) {
+      siteData.supporters.sponsors[index][field] = value;
+      saveData();
+    }
+
+    function removeSponsor(index) {
+      siteData.supporters.sponsors.splice(index, 1);
+      saveData();
+    }
+
+    // ============ 藝術家管理 ============
+    function addArtist() {
+      const newId = 'art-' + Date.now();
+      siteData.supporters.artists.push({ id: newId, name: '藝術家名稱', avatar: 'https://picsum.photos/seed/' + Date.now() + '/100/100', url: '' });
+      saveData();
+    }
+
+    function updateArtist(index, field, value) {
+      siteData.supporters.artists[index][field] = value;
+      saveData();
+    }
+
+    function removeArtist(index) {
+      siteData.supporters.artists.splice(index, 1);
       saveData();
     }
 
@@ -309,6 +390,12 @@
       if (el.type === 'image') {
         return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
       }
+      // 支援圖片模式的標題
+      if (el.displayMode === 'image' && el.imageUrl) {
+        return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>
+          <img src="${el.imageUrl}" alt="${el.content}" class="max-h-32 md:max-h-48 object-contain mx-auto">
+        </div>`;
+      }
       return `<div class="${el.style?.fontSize || ''} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color}" ${onClick}>${el.content}</div>`;
     }
 
@@ -349,7 +436,7 @@
               </div>
             </div>
             <div class="p-4 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v11');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v13');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
             </div>
           </div>
         `;
@@ -539,6 +626,132 @@
         `;
       }
 
+      // 索取徽章地點設定
+      if (activeElementId === 'locations-settings') {
+        const ls = siteData.boxStyles?.locationsBox || INITIAL_DATA.boxStyles.locationsBox;
+        const locations = siteData.locations?.items || [];
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">索取徽章地點</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">區塊樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">框線顏色</label>
+                    <input type="color" value="${ls.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('locationsBox', {borderColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景顏色</label>
+                    <input type="color" value="${ls.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('locationsBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影顏色</label>
+                    <input type="text" value="${ls.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" onchange="updateBoxStyle('locationsBox', {shadowColor: this.value})">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">地點列表 (${locations.length}個)</h4>
+                  <button onclick="addLocation()" class="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
+                </div>
+                <div class="space-y-3 max-h-[350px] overflow-y-auto">
+                  ${locations.map((loc, idx) => `
+                    <div class="border-2 border-gray-300 rounded p-2">
+                      <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold">#${idx + 1}</span>
+                        <button onclick="removeLocation(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                      </div>
+                      <input type="text" value="${loc.name}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="地點名稱" onchange="updateLocation(${idx}, 'name', this.value)">
+                      <input type="text" value="${loc.address}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="地址" onchange="updateLocation(${idx}, 'address', this.value)">
+                      <input type="text" value="${loc.note}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="備註" onchange="updateLocation(${idx}, 'note', this.value)">
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 贊助廠商/藝術家設定
+      if (activeElementId === 'supporters-settings') {
+        const ss = siteData.boxStyles?.supportersBox || INITIAL_DATA.boxStyles.supportersBox;
+        const sponsors = siteData.supporters?.sponsors || [];
+        const artists = siteData.supporters?.artists || [];
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">贊助商/藝術家</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">區塊樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">框線顏色</label>
+                    <input type="color" value="${ss.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('supportersBox', {borderColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景顏色</label>
+                    <input type="color" value="${ss.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('supportersBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影顏色</label>
+                    <input type="text" value="${ss.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" onchange="updateBoxStyle('supportersBox', {shadowColor: this.value})">
+                  </div>
+                </div>
+              </div>
+
+              <div class="border-b pb-4">
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">贊助廠商 (${sponsors.length}個)</h4>
+                  <button onclick="addSponsor()" class="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
+                </div>
+                <div class="space-y-2 max-h-[150px] overflow-y-auto">
+                  ${sponsors.map((sp, idx) => `
+                    <div class="border border-gray-300 rounded p-2">
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold">#${idx + 1}</span>
+                        <button onclick="removeSponsor(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                      </div>
+                      <input type="text" value="${sp.name}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="名稱" onchange="updateSponsor(${idx}, 'name', this.value)">
+                      <input type="text" value="${sp.logo}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="Logo 圖片網址" onchange="updateSponsor(${idx}, 'logo', this.value)">
+                      <input type="text" value="${sp.url || ''}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="連結網址" onchange="updateSponsor(${idx}, 'url', this.value)">
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">參與藝術家 (${artists.length}個)</h4>
+                  <button onclick="addArtist()" class="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
+                </div>
+                <div class="space-y-2 max-h-[150px] overflow-y-auto">
+                  ${artists.map((art, idx) => `
+                    <div class="border border-gray-300 rounded p-2">
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold">#${idx + 1}</span>
+                        <button onclick="removeArtist(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                      </div>
+                      <input type="text" value="${art.name}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="名稱" onchange="updateArtist(${idx}, 'name', this.value)">
+                      <input type="text" value="${art.avatar}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="頭像圖片網址" onchange="updateArtist(${idx}, 'avatar', this.value)">
+                      <input type="text" value="${art.url || ''}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="連結網址 (IG/網站)" onchange="updateArtist(${idx}, 'url', this.value)">
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
       if (!activeElementId) return '';
       const el = findElement(activeElementId);
       if (!el) return '';
@@ -555,47 +768,75 @@
           </div>
           <div class="p-4 space-y-4 overflow-y-auto flex-1">
             ${isText ? `
-              <div>
-                <label class="block text-sm font-bold mb-2">內容編輯</label>
-                <p class="text-xs text-gray-500 mb-2">先選取文字，再點下方按鈕套用樣式</p>
-                <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('bold')" title="粗體"><b>B</b></button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('italic')" title="斜體"><i>I</i></button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('underline')" title="底線"><u>U</u></button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('1')" title="極小字">1</button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('3')" title="小字">3</button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('5')" title="大字">5</button>
-                  <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('7')" title="巨大">7</button>
+              <!-- 顯示模式切換 -->
+              <div class="border-b pb-4 mb-4">
+                <label class="block text-sm font-bold mb-2">顯示模式</label>
+                <div class="flex gap-2">
+                  <button class="flex-1 py-2 rounded ${el.displayMode !== 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'text'})">文字</button>
+                  <button class="flex-1 py-2 rounded ${el.displayMode === 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'image'})">圖片</button>
                 </div>
-                <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
-                  ${AVAILABLE_FONTS.map(f => `
-                    <button class="toolbar-btn text-xs" onmousedown="event.preventDefault();applyFontNameCmd('${f.id}')" title="${f.name}" style="font-family:'${f.id}'">${f.name.substring(0,4)}</button>
-                  `).join('')}
+              </div>
+
+              ${el.displayMode === 'image' ? `
+                <!-- 圖片模式 -->
+                <div>
+                  <label class="block text-sm font-bold mb-2">圖片網址</label>
+                  <input type="text" value="${el.imageUrl || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入手寫標題圖片網址" onchange="updateElement('${el.id}', {imageUrl: this.value})">
+                  <p class="text-xs text-gray-400 mt-1">可上傳手寫文字圖片來替代文字標題</p>
                 </div>
-                <div class="flex gap-2 mb-2 items-center bg-gray-100 p-2 rounded">
-                  <span class="text-xs">選取文字顏色:</span>
-                  <input type="color" id="text-color-picker" value="#000000" class="w-8 h-8 cursor-pointer border-0" onchange="applyFontColorCmd(this.value)">
+                ${el.imageUrl ? `
+                  <div class="mt-2">
+                    <div class="text-sm text-gray-500 mb-1">預覽：</div>
+                    <img src="${el.imageUrl}" class="max-h-32 object-contain border-2 border-gray-300 rounded p-2 bg-white">
+                  </div>
+                ` : ''}
+                <div class="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded text-xs">
+                  <strong>提示：</strong>文字內容仍會保留，切換回文字模式時會顯示。
                 </div>
-                <div id="rich-editor" class="rich-editor" contenteditable="true"
-                     onmouseup="saveSelection()"
-                     onkeyup="saveSelection()"
-                     onblur="saveRichText('${el.id}')">${el.content}</div>
-              </div>
-              <div>
-                <label class="block text-sm font-bold mb-2">整體文字顏色</label>
-                <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-10 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
-              </div>
-              <div>
-                <label class="block text-sm font-bold mb-2">整體字體大小</label>
-                <select class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
-                  <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
-                  <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
-                  <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
-                  <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
-                  <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
-                  <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
-                </select>
-              </div>
+              ` : `
+                <!-- 文字模式 -->
+                <div>
+                  <label class="block text-sm font-bold mb-2">內容編輯</label>
+                  <p class="text-xs text-gray-500 mb-2">先選取文字，再點下方按鈕套用樣式</p>
+                  <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('bold')" title="粗體"><b>B</b></button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('italic')" title="斜體"><i>I</i></button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('underline')" title="底線"><u>U</u></button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('1')" title="極小字">1</button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('3')" title="小字">3</button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('5')" title="大字">5</button>
+                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('7')" title="巨大">7</button>
+                  </div>
+                  <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
+                    ${AVAILABLE_FONTS.map(f => `
+                      <button class="toolbar-btn text-xs" onmousedown="event.preventDefault();applyFontNameCmd('${f.id}')" title="${f.name}" style="font-family:'${f.id}'">${f.name.substring(0,4)}</button>
+                    `).join('')}
+                  </div>
+                  <div class="flex gap-2 mb-2 items-center bg-gray-100 p-2 rounded">
+                    <span class="text-xs">選取文字顏色:</span>
+                    <input type="color" id="text-color-picker" value="#000000" class="w-8 h-8 cursor-pointer border-0" onchange="applyFontColorCmd(this.value)">
+                  </div>
+                  <div id="rich-editor" class="rich-editor" contenteditable="true"
+                       onmouseup="saveSelection()"
+                       onkeyup="saveSelection()"
+                       onblur="saveRichText('${el.id}')">${el.content}</div>
+                </div>
+                <div>
+                  <label class="block text-sm font-bold mb-2">整體文字顏色</label>
+                  <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-10 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
+                </div>
+                <div>
+                  <label class="block text-sm font-bold mb-2">整體字體大小</label>
+                  <select class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
+                    <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
+                    <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
+                    <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
+                    <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
+                    <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
+                    <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
+                  </select>
+                </div>
+              `}
             ` : isMedia ? `
               <div>
                 <label class="block text-sm font-bold mb-2">媒體網址</label>
@@ -655,7 +896,7 @@
         const el = findElement(id);
         if (el) {
           el.content = editor.innerHTML;
-          localStorage.setItem('drawme_data_v11', JSON.stringify(siteData));
+          localStorage.setItem('drawme_data_v13', JSON.stringify(siteData));
         }
       }
     }
@@ -777,6 +1018,75 @@
                 })()}
               </div>
             </div>
+
+            <!-- 索取徽章地點 -->
+            ${(() => {
+              const ls = siteData.boxStyles?.locationsBox || INITIAL_DATA.boxStyles.locationsBox;
+              const lsShadow = `box-shadow: 6px 6px 0px 0px ${ls.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const locations = siteData.locations?.items || [];
+              return `
+                <div class="mb-24">
+                  ${renderElement(d.locations?.title || siteData.locations?.title, 'text-center mb-12')}
+                  <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
+                       style="background: ${ls.bgColor}; border: ${ls.borderWidth}px solid ${ls.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${lsShadow}"
+                       ${isAdmin ? 'onclick="selectElement(\'locations-settings\')"' : ''}>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      ${locations.map((loc, idx) => `
+                        <div class="p-4 bg-white/80 rounded-lg" style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
+                          <div class="font-bold text-lg mb-1">${loc.name}</div>
+                          <div class="text-sm text-gray-600 mb-1">${loc.address}</div>
+                          <div class="text-xs text-pink-600">${loc.note}</div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              `;
+            })()}
+
+            <!-- 贊助廠商 / 參與藝術家 -->
+            ${(() => {
+              const ss = siteData.boxStyles?.supportersBox || INITIAL_DATA.boxStyles.supportersBox;
+              const ssShadow = `box-shadow: 6px 6px 0px 0px ${ss.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const sponsors = siteData.supporters?.sponsors || [];
+              const artists = siteData.supporters?.artists || [];
+              return `
+                <div class="mb-24">
+                  ${renderElement(d.supporters?.title || siteData.supporters?.title, 'text-center mb-12')}
+                  <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
+                       style="background: ${ss.bgColor}; border: ${ss.borderWidth}px solid ${ss.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${ssShadow}"
+                       ${isAdmin ? 'onclick="selectElement(\'supporters-settings\')"' : ''}>
+
+                    ${sponsors.length > 0 ? `
+                      <div class="mb-8">
+                        <h4 class="text-center text-lg font-bold mb-4 opacity-60">贊助廠商</h4>
+                        <div class="flex flex-wrap justify-center gap-6">
+                          ${sponsors.map(sp => `
+                            <a href="${sp.url || '#'}" target="_blank" rel="noopener noreferrer" class="block hover:scale-110 transition-transform">
+                              <img src="${sp.logo}" alt="${sp.name}" class="h-16 object-contain" title="${sp.name}">
+                            </a>
+                          `).join('')}
+                        </div>
+                      </div>
+                    ` : ''}
+
+                    ${artists.length > 0 ? `
+                      <div>
+                        <h4 class="text-center text-lg font-bold mb-4 opacity-60">參與藝術家</h4>
+                        <div class="flex flex-wrap justify-center gap-6">
+                          ${artists.map(art => `
+                            <a href="${art.url || '#'}" target="_blank" rel="noopener noreferrer" class="text-center hover:scale-110 transition-transform">
+                              <img src="${art.avatar}" alt="${art.name}" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 border-2 border-black">
+                              <div class="text-sm font-bold">${art.name}</div>
+                            </a>
+                          `).join('')}
+                        </div>
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              `;
+            })()}
 
             ${(() => {
               const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
