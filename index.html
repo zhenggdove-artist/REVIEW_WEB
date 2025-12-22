@@ -51,10 +51,21 @@
       settings: { englishFont: 'GarmentDistrict' },
       background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png' },
       decoration: { circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } } },
+      // 各區塊框線樣式
+      boxStyles: {
+        mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff' },
+        manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: 'rgba(255,255,255,0.5)' },
+        actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff' },
+        footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0' },
+        dashedBorder: { color: '#000000', width: 4, dashLength: 10, gapLength: 6 }
+      },
       hero: {
         title: { id: 'hero-title', type: 'richtext', content: 'DRAW ME TAIWAN', style: { fontSize: 'text-7xl', color: '#FF00A0', rotation: -2 } },
         subtitle: { id: 'hero-subtitle', type: 'richtext', content: '溫柔視線行動 - 讓我們重新練習『看見』人。', style: { fontSize: 'text-2xl', color: '#000000', rotation: 1 } },
-        mainMedia: { id: 'hero-media', type: 'media', content: 'https://picsum.photos/seed/drawme/800/800', mediaType: 'image', style: { rotation: 0 } }
+        mediaItems: [
+          { id: 'hero-media-0', type: 'media', content: 'https://picsum.photos/seed/drawme/800/800', mediaType: 'image' }
+        ],
+        currentMediaIndex: 0
       },
       manifesto: {
         paragraphs: [
@@ -77,16 +88,24 @@
     };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v9')) || JSON.parse(JSON.stringify(INITIAL_DATA));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v10')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
-    if (!siteData.hero.mainMedia) siteData.hero.mainMedia = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mainMedia));
+    if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
+    // 舊版資料遷移：mainMedia -> mediaItems
+    if (siteData.hero.mainMedia && !siteData.hero.mediaItems) {
+      siteData.hero.mediaItems = [siteData.hero.mainMedia];
+      siteData.hero.currentMediaIndex = 0;
+      delete siteData.hero.mainMedia;
+    }
+    if (!siteData.hero.mediaItems) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
+    if (siteData.hero.currentMediaIndex === undefined) siteData.hero.currentMediaIndex = 0;
     let isAdmin = false;
     let activeElementId = null;
     let savedSelection = null; // 保存選取範圍
 
     function saveData() {
-      localStorage.setItem('drawme_data_v9', JSON.stringify(siteData));
+      localStorage.setItem('drawme_data_v10', JSON.stringify(siteData));
       applyStyles();
       render();
     }
@@ -125,6 +144,57 @@
 
     function updateSettings(updates) {
       siteData.settings = { ...siteData.settings, ...updates };
+      saveData();
+    }
+
+    function updateBoxStyle(boxName, updates) {
+      if (!siteData.boxStyles) siteData.boxStyles = {};
+      siteData.boxStyles[boxName] = { ...siteData.boxStyles[boxName], ...updates };
+      saveData();
+    }
+
+    // ============ 輪播功能 ============
+    function nextMedia() {
+      const items = siteData.hero.mediaItems;
+      if (items.length > 1) {
+        siteData.hero.currentMediaIndex = (siteData.hero.currentMediaIndex + 1) % items.length;
+        saveData();
+      }
+    }
+
+    function prevMedia() {
+      const items = siteData.hero.mediaItems;
+      if (items.length > 1) {
+        siteData.hero.currentMediaIndex = (siteData.hero.currentMediaIndex - 1 + items.length) % items.length;
+        saveData();
+      }
+    }
+
+    function addMediaItem() {
+      const newId = 'hero-media-' + Date.now();
+      siteData.hero.mediaItems.push({
+        id: newId,
+        type: 'media',
+        content: 'https://picsum.photos/seed/' + Date.now() + '/800/800',
+        mediaType: 'image'
+      });
+      saveData();
+    }
+
+    function removeMediaItem(index) {
+      if (siteData.hero.mediaItems.length > 1) {
+        siteData.hero.mediaItems.splice(index, 1);
+        if (siteData.hero.currentMediaIndex >= siteData.hero.mediaItems.length) {
+          siteData.hero.currentMediaIndex = siteData.hero.mediaItems.length - 1;
+        }
+        saveData();
+      } else {
+        alert('至少需要保留一張圖片！');
+      }
+    }
+
+    function updateMediaItem(index, url) {
+      siteData.hero.mediaItems[index].content = url;
       saveData();
     }
 
@@ -265,7 +335,170 @@
               </div>
             </div>
             <div class="p-4 border-t-2 border-black">
-              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v9');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
+              <button onclick="if(confirm('確定要重置所有內容嗎？')){localStorage.removeItem('drawme_data_v10');location.reload();}" class="w-full py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 text-sm">重置所有內容</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // 輪播圖片管理
+      if (activeElementId === 'carousel-settings') {
+        const items = siteData.hero.mediaItems || [];
+        const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">輪播圖片管理</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">圖片框樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">框線顏色</label>
+                    <input type="color" value="${boxStyle.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {borderColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">框線粗細: ${boxStyle.borderWidth}px</label>
+                    <input type="range" min="0" max="10" value="${boxStyle.borderWidth}" class="w-full" onchange="updateBoxStyle('mediaBox', {borderWidth: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景顏色</label>
+                    <input type="color" value="${boxStyle.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {bgColor: this.value})">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">圖片列表 (${items.length}張)</h4>
+                  <button onclick="addMediaItem()" class="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
+                </div>
+                <div class="space-y-3 max-h-[400px] overflow-y-auto">
+                  ${items.map((item, idx) => `
+                    <div class="border-2 border-gray-300 rounded p-2 ${siteData.hero.currentMediaIndex === idx ? 'border-pink-500 bg-pink-50' : ''}">
+                      <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold">#${idx + 1}</span>
+                        <button onclick="removeMediaItem(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                      </div>
+                      <input type="text" value="${item.content}" class="w-full p-1 border border-gray-300 rounded text-xs mb-2" placeholder="圖片或影片網址" onchange="updateMediaItem(${idx}, this.value)">
+                      ${getYouTubeId(item.content) ?
+                        `<div class="text-xs text-gray-500">YouTube 影片</div>` :
+                        `<img src="${item.content}" class="w-full h-20 object-cover rounded">`
+                      }
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 虛線框設定
+      if (activeElementId === 'box-dashed') {
+        const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
+        const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">底部區域設定</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">虛線框樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">虛線顏色</label>
+                    <input type="color" value="${db.color}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('dashedBorder', {color: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">虛線粗細: ${db.width}px</label>
+                    <input type="range" min="1" max="20" value="${db.width}" class="w-full" onchange="updateBoxStyle('dashedBorder', {width: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">虛線長度: ${db.dashLength}px</label>
+                    <input type="range" min="2" max="50" value="${db.dashLength}" class="w-full" onchange="updateBoxStyle('dashedBorder', {dashLength: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">間隔長度: ${db.gapLength}px</label>
+                    <input type="range" min="2" max="50" value="${db.gapLength}" class="w-full" onchange="updateBoxStyle('dashedBorder', {gapLength: parseInt(this.value)})">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 class="font-bold mb-2 text-sm">聯絡框樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">框線顏色</label>
+                    <input type="color" value="${fs.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {borderColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">框線粗細: ${fs.borderWidth}px</label>
+                    <input type="range" min="0" max="10" value="${fs.borderWidth}" class="w-full" onchange="updateBoxStyle('footerBox', {borderWidth: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景顏色</label>
+                    <input type="color" value="${fs.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {bgColor: this.value})">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 宣言區塊框設定
+      if (activeElementId === 'box-manifesto') {
+        const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">宣言區塊設定</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label class="text-xs">框線顏色</label>
+                <input type="color" value="${ms.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('manifestoBox', {borderColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">框線粗細: ${ms.borderWidth}px</label>
+                <input type="range" min="0" max="10" value="${ms.borderWidth}" class="w-full" onchange="updateBoxStyle('manifestoBox', {borderWidth: parseInt(this.value)})">
+              </div>
+              <div>
+                <label class="text-xs">背景顏色</label>
+                <input type="text" value="${ms.bgColor}" class="w-full p-2 border border-gray-300 rounded text-sm" placeholder="例: rgba(255,255,255,0.5)" onchange="updateBoxStyle('manifestoBox', {bgColor: this.value})">
+                <p class="text-xs text-gray-400 mt-1">支援 rgba 透明色，例: rgba(255,255,255,0.5)</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 行動區塊框設定
+      if (activeElementId === 'box-action') {
+        const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">行動區塊設定</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label class="text-xs">框線顏色</label>
+                <input type="color" value="${as.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {borderColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">框線粗細: ${as.borderWidth}px</label>
+                <input type="range" min="0" max="10" value="${as.borderWidth}" class="w-full" onchange="updateBoxStyle('actionBox', {borderWidth: parseInt(this.value)})">
+              </div>
+              <div>
+                <label class="text-xs">背景顏色</label>
+                <input type="color" value="${as.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {bgColor: this.value})">
+              </div>
             </div>
           </div>
         `;
@@ -387,9 +620,54 @@
         const el = findElement(id);
         if (el) {
           el.content = editor.innerHTML;
-          localStorage.setItem('drawme_data_v9', JSON.stringify(siteData));
+          localStorage.setItem('drawme_data_v10', JSON.stringify(siteData));
         }
       }
+    }
+
+    // ============ 輪播渲染 ============
+    function renderCarousel() {
+      const items = siteData.hero.mediaItems || [];
+      const currentIndex = siteData.hero.currentMediaIndex || 0;
+      const currentItem = items[currentIndex];
+      if (!currentItem) return '';
+
+      const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
+      const borderStyle = `border: ${boxStyle.borderWidth}px solid ${boxStyle.borderColor};`;
+      const bgStyle = `background: ${boxStyle.bgColor};`;
+
+      const youtubeId = getYouTubeId(currentItem.content);
+      let mediaContent = '';
+      if (youtubeId) {
+        mediaContent = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>`;
+      } else if (currentItem.content && (currentItem.content.includes('.mp4') || currentItem.content.includes('.webm'))) {
+        mediaContent = `<video src="${currentItem.content}" controls class="max-w-full h-auto rounded"></video>`;
+      } else {
+        mediaContent = `<img src="${currentItem.content}" alt="圖片" class="max-w-full h-auto rounded">`;
+      }
+
+      const showNav = items.length > 1;
+      return `
+        <div class="media-container sketch-shadow relative cursor-pointer"
+             style="${borderStyle} ${bgStyle} border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
+             onclick="${isAdmin ? '' : 'nextMedia()'}">
+          ${mediaContent}
+          ${showNav ? `
+            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+              ${items.map((_, idx) => `
+                <span class="w-3 h-3 rounded-full ${idx === currentIndex ? 'bg-pink-500' : 'bg-gray-400'} inline-block"></span>
+              `).join('')}
+            </div>
+            ${!isAdmin ? `
+              <div class="absolute inset-0 flex items-center justify-between px-4 opacity-0 hover:opacity-100 transition-opacity">
+                <button onclick="event.stopPropagation();prevMedia()" class="w-10 h-10 bg-black/50 text-white rounded-full text-xl hover:bg-black/70">&lt;</button>
+                <button onclick="event.stopPropagation();nextMedia()" class="w-10 h-10 bg-black/50 text-white rounded-full text-xl hover:bg-black/70">&gt;</button>
+              </div>
+            ` : ''}
+          ` : ''}
+          ${isAdmin ? `<div class="absolute inset-0 admin-highlight" onclick="selectElement('carousel-settings')"></div>` : ''}
+        </div>
+      `;
     }
 
     function renderLoginModal() {
@@ -430,32 +708,50 @@
             <div class="text-center mb-24">
               ${renderElement(d.hero.title, 'mb-8')}
               ${renderElement(d.hero.subtitle, 'mb-16')}
-              <div class="media-container sketch-border sketch-shadow" style="transform: rotate(1deg);">
-                ${renderElement(d.hero.mainMedia || d.hero.mainImage)}
-              </div>
+              ${renderCarousel()}
             </div>
 
-            <div class="bg-white/50 p-12 sketch-border mb-24 relative space-y-8 shadow-inner">
-              <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
-              ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
-              <div class="absolute -bottom-20 right-0 text-9xl opacity-10 select-none" style="transform: rotate(180deg);">"</div>
-            </div>
+            ${(() => {
+              const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
+              return `
+                <div class="p-12 mb-24 relative space-y-8 shadow-inner sketch-shadow ${isAdmin ? 'admin-highlight' : ''}"
+                     style="background: ${ms.bgColor}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;"
+                     ${isAdmin ? 'onclick="selectElement(\'box-manifesto\')"' : ''}>
+                  <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
+                  ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
+                  <div class="absolute -bottom-20 right-0 text-9xl opacity-10 select-none" style="transform: rotate(180deg);">"</div>
+                </div>
+              `;
+            })()}
 
             <div class="mb-24">
               ${renderElement(d.actions.title, 'text-center mb-16')}
               <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
-                ${d.actions.items.map((item, idx) => `
-                  <div class="p-8 bg-white sketch-border sketch-shadow" style="transform: rotate(${idx % 2 === 0 ? 1 : -1}deg);">
-                    ${renderElement(item)}
-                  </div>
-                `).join('')}
+                ${(() => {
+                  const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
+                  return d.actions.items.map((item, idx) => `
+                    <div class="p-8 sketch-shadow ${isAdmin ? 'admin-highlight' : ''}"
+                         style="background: ${as.bgColor}; border: ${as.borderWidth}px solid ${as.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(${idx % 2 === 0 ? 1 : -1}deg);"
+                         ${isAdmin ? 'onclick="event.stopPropagation();selectElement(\'box-action\')"' : ''}>
+                      ${renderElement(item)}
+                    </div>
+                  `).join('');
+                })()}
               </div>
             </div>
 
-            <div class="text-center pt-24 border-t-4 border-black border-dashed">
-              <div class="content-box bg-[#FF00A0] text-white sketch-border sketch-shadow" style="transform: rotate(1deg);">
-                ${renderElement(d.footer.contact)}
-              </div>
+            ${(() => {
+              const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
+              const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
+              const dashStyle = `border-top: ${db.width}px dashed ${db.color}; background-image: linear-gradient(to right, ${db.color} ${db.dashLength}px, transparent ${db.dashLength}px); background-size: ${db.dashLength + db.gapLength}px ${db.width}px; background-repeat: repeat-x; background-position: 0 0;`;
+              return `
+                <div class="text-center pt-24 ${isAdmin ? 'admin-highlight' : ''}" style="border-top: ${db.width}px dashed ${db.color};" ${isAdmin ? 'onclick="selectElement(\'box-dashed\')"' : ''}>
+                  <div class="content-box text-white sketch-shadow"
+                       style="background: ${fs.bgColor}; border: ${fs.borderWidth}px solid ${fs.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);">
+                    ${renderElement(d.footer.contact)}
+                  </div>
+              `;
+            })()}
               <div class="mt-16 flex justify-center gap-6 text-xl opacity-60">
                 <span>#DrawMeTaiwan</span>
                 <span>#社會雕塑</span>
