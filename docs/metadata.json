@@ -1,0 +1,7 @@
+{
+  "name": "DrawMeTaiwan - 溫柔視線行動",
+  "description": "一個發起於北捷事件後的社會雕塑行動，透過速寫重新練習『看見』彼此的溫度。支持全站文字與圖片即時編輯的手寫感網頁。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
