@@ -943,44 +943,90 @@
                 <!-- 文字模式 -->
                 <div>
                   <label class="block text-sm font-bold mb-2">內容編輯</label>
-                  <p class="text-xs text-gray-500 mb-2">先選取文字，再點下方按鈕套用樣式</p>
-                  <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('bold')" title="粗體"><b>B</b></button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('italic')" title="斜體"><i>I</i></button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFormat('underline')" title="底線"><u>U</u></button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('1')" title="極小字">1</button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('3')" title="小字">3</button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('5')" title="大字">5</button>
-                    <button class="toolbar-btn" onmousedown="event.preventDefault();applyFontSizeCmd('7')" title="巨大">7</button>
+                  <div class="p-3 bg-yellow-50 border border-yellow-400 rounded text-xs mb-3">
+                    <strong>使用方式：</strong>在下方編輯框中選取文字 → 選擇樣式 → 按「套用」按鈕
                   </div>
-                  <div class="flex gap-1 mb-2 flex-wrap bg-gray-100 p-2 rounded">
-                    ${AVAILABLE_FONTS.map(f => `
-                      <button class="toolbar-btn text-xs" onmousedown="event.preventDefault();applyFontNameCmd('${f.id}')" title="${f.name}" style="font-family:'${f.id}'">${f.name.substring(0,4)}</button>
-                    `).join('')}
+
+                  <!-- 基本格式 -->
+                  <div class="bg-gray-100 p-3 rounded mb-3">
+                    <div class="text-xs font-bold mb-2">基本格式</div>
+                    <div class="flex gap-2">
+                      <button class="toolbar-btn flex-1" onmousedown="event.preventDefault();applyFormat('bold')"><b>粗體</b></button>
+                      <button class="toolbar-btn flex-1" onmousedown="event.preventDefault();applyFormat('italic')"><i>斜體</i></button>
+                      <button class="toolbar-btn flex-1" onmousedown="event.preventDefault();applyFormat('underline')"><u>底線</u></button>
+                    </div>
                   </div>
-                  <div class="flex gap-2 mb-2 items-center bg-gray-100 p-2 rounded">
-                    <span class="text-xs">選取文字顏色:</span>
-                    <input type="color" id="text-color-picker" value="#000000" class="w-8 h-8 cursor-pointer border-0" onchange="applyFontColorCmd(this.value)">
+
+                  <!-- 字體大小 -->
+                  <div class="bg-gray-100 p-3 rounded mb-3">
+                    <div class="text-xs font-bold mb-2">選取文字大小</div>
+                    <div class="flex gap-2">
+                      <select id="font-size-select" class="flex-1 p-2 border border-gray-300 rounded text-sm">
+                        <option value="1">極小</option>
+                        <option value="2">小</option>
+                        <option value="3" selected>正常</option>
+                        <option value="4">中</option>
+                        <option value="5">大</option>
+                        <option value="6">特大</option>
+                        <option value="7">巨大</option>
+                      </select>
+                      <button class="px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600" onmousedown="event.preventDefault();applyFontSizeCmd(document.getElementById('font-size-select').value)">套用</button>
+                    </div>
                   </div>
+
+                  <!-- 字體選擇 -->
+                  <div class="bg-gray-100 p-3 rounded mb-3">
+                    <div class="text-xs font-bold mb-2">選取文字字體</div>
+                    <div class="flex gap-2">
+                      <select id="font-family-select" class="flex-1 p-2 border border-gray-300 rounded text-sm">
+                        ${AVAILABLE_FONTS.map(f => `<option value="${f.id}" style="font-family:'${f.id}'">${f.name}</option>`).join('')}
+                      </select>
+                      <button class="px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600" onmousedown="event.preventDefault();applyFontNameCmd(document.getElementById('font-family-select').value)">套用</button>
+                    </div>
+                  </div>
+
+                  <!-- 文字顏色 -->
+                  <div class="bg-gray-100 p-3 rounded mb-3">
+                    <div class="text-xs font-bold mb-2">選取文字顏色</div>
+                    <div class="flex gap-2 items-center">
+                      <input type="color" id="text-color-picker" value="#000000" class="w-12 h-10 cursor-pointer border-2 border-gray-300 rounded">
+                      <span id="color-preview" class="flex-1 text-sm">#000000</span>
+                      <button class="px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600" onmousedown="event.preventDefault();applyFontColorCmd(document.getElementById('text-color-picker').value)">套用</button>
+                    </div>
+                    <script>document.getElementById('text-color-picker')?.addEventListener('input', e => document.getElementById('color-preview').textContent = e.target.value);</script>
+                  </div>
+
+                  <!-- 編輯區 -->
                   <div id="rich-editor" class="rich-editor" contenteditable="true"
                        onmouseup="saveSelection()"
                        onkeyup="saveSelection()"
+                       onfocus="saveSelection()"
                        onblur="saveRichText('${el.id}')">${el.content}</div>
+                  <p class="text-xs text-gray-400 mt-1">在上方選取文字後，使用上方工具套用樣式</p>
                 </div>
-                <div>
-                  <label class="block text-sm font-bold mb-2">整體文字顏色</label>
-                  <input type="color" value="${el.style?.color || '#000000'}" class="w-full h-10 cursor-pointer" onchange="updateElement('${el.id}', {style: {color: this.value}})">
-                </div>
-                <div>
-                  <label class="block text-sm font-bold mb-2">整體字體大小</label>
-                  <select class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {style: {fontSize: this.value}})">
-                    <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
-                    <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
-                    <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
-                    <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
-                    <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
-                    <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
-                  </select>
+
+                <!-- 整體樣式 -->
+                <div class="border-t pt-4 mt-4">
+                  <div class="text-sm font-bold mb-3">整體區塊樣式</div>
+                  <div class="space-y-3">
+                    <div class="flex gap-2 items-center">
+                      <label class="text-xs w-20">整體顏色</label>
+                      <input type="color" id="block-color-${el.id}" value="${el.style?.color || '#000000'}" class="w-10 h-8 cursor-pointer border border-gray-300 rounded">
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {color: document.getElementById('block-color-${el.id}').value}})">套用顏色</button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                      <label class="text-xs w-20">整體大小</label>
+                      <select id="block-size-${el.id}" class="flex-1 p-1 border border-gray-300 rounded text-sm">
+                        <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
+                        <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
+                        <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
+                        <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
+                        <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
+                        <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
+                      </select>
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {fontSize: document.getElementById('block-size-${el.id}').value}})">套用大小</button>
+                    </div>
+                  </div>
                 </div>
               `}
             ` : isMedia ? `
