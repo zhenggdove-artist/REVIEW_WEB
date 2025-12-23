@@ -2351,6 +2351,7 @@
               const ssBg = hexToRgba(ss.bgColor || '#E7F0FF', ss.bgOpacity ?? 100);
               const ssShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ss.shadowColor || '#000000', ss.shadowOpacity ?? 80) + ';';
               const sponsors = siteData.supporters?.sponsors || [];
+              const viewSponsors = sponsors.filter(sp => sp.logo && String(sp.logo).trim());
               const artists = siteData.supporters?.artists || [];
               return `
                 <div class="mb-24">
@@ -2358,16 +2359,19 @@
                   <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
                        style="background: ${ssBg}; border: ${ss.borderWidth}px solid ${ss.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${ssShadow}"
                        ${isAdmin ? 'onclick="selectElement(\'supporters-settings\')"' : ''}>
-
-                    ${sponsors.length > 0 ? `
+ 
+                    ${viewSponsors.length > 0 ? `
                       <div class="mb-8">
                         <h4 class="text-center text-lg font-bold mb-4 opacity-60">贊助廠商</h4>
                         <div class="flex flex-wrap justify-center gap-6">
-                          ${sponsors.map(sp => `
-                            <a href="${sp.url || '#'}" target="_blank" rel="noopener noreferrer" class="block hover:scale-110 transition-transform">
-                              <img src="${sp.logo}" alt="${sp.name}" class="h-16 object-contain" title="${sp.name}">
-                            </a>
-                          `).join('')}
+                          ${viewSponsors.map(sp => {
+                            const hasUrl = !!(sp.url && String(sp.url).trim());
+                            const inner = `<img src="${sp.logo}" alt="${sp.name}" class="h-16 object-contain" title="${sp.name}" style="visibility:hidden" onload="this.style.visibility='visible'" onerror="this.parentElement && (this.parentElement.style.display='none');">`;
+                            const wrapClass = `block transition-transform ${hasUrl ? 'hover:scale-110' : ''}`;
+                            return hasUrl
+                              ? `<a href="${sp.url}" target="_blank" rel="noopener noreferrer" class="${wrapClass}">${inner}</a>`
+                              : `<div class="${wrapClass}">${inner}</div>`;
+                          }).join('')}
                         </div>
                       </div>
                     ` : ''}
@@ -2376,12 +2380,18 @@
                       <div>
                         <h4 class="text-center text-lg font-bold mb-4 opacity-60">參與藝術家</h4>
                         <div class="flex flex-wrap justify-center gap-6">
-                          ${artists.map(art => `
-                            <a href="${art.url || '#'}" target="_blank" rel="noopener noreferrer" class="text-center hover:scale-110 transition-transform">
-                              <img src="${art.avatar}" alt="${art.name}" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 border-2 border-black">
+                          ${artists.map(art => {
+                            const hasAvatar = !!(art.avatar && String(art.avatar).trim());
+                            const hasUrl = !!(art.url && String(art.url).trim());
+                            const inner = `
+                              ${hasAvatar ? `<img src="${art.avatar}" alt="${art.name}" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 border-2 border-black" style="visibility:hidden" onload="this.style.visibility='visible'" onerror="this.style.display='none';">` : ''}
                               <div class="text-sm font-bold">${art.name}</div>
-                            </a>
-                          `).join('')}
+                            `;
+                            const wrapClass = `text-center transition-transform ${hasUrl ? 'hover:scale-110' : ''}`;
+                            return hasUrl
+                              ? `<a href="${art.url}" target="_blank" rel="noopener noreferrer" class="${wrapClass}">${inner}</a>`
+                              : `<div class="${wrapClass}">${inner}</div>`;
+                          }).join('')}
                         </div>
                       </div>
                     ` : ''}
