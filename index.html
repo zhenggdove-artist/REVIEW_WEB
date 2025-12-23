@@ -22,6 +22,9 @@
     @font-face { font-family: 'Streetwear'; src: url('./fonts/Streetwear.otf') format('opentype'); font-display: block; }
     @font-face { font-family: 'GamaHand'; src: url('./fonts/GamaHand.otf') format('opentype'); font-display: block; }
     body { background-color: #fcfcfc; color: #1a1a1a; margin: 0; padding: 0; overflow-x: hidden; }
+    body.app-loading #app { visibility: hidden; }
+    body.app-loading #custom-cursor { display: none !important; }
+    body.app-loading #mobile-preview-overlay { display: none !important; }
     .sketch-border { border: 2px solid #1a1a1a; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; }
     .sketch-shadow { box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.8); }
     .admin-highlight { outline: 3px dashed #FF00A0 !important; outline-offset: 4px; cursor: pointer; }
@@ -596,10 +599,21 @@
     }
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
-    // 補充 pageTitle / 分享文字 / favicon
-    if (!siteData.settings.pageTitle) siteData.settings.pageTitle = INITIAL_DATA.settings.pageTitle;
-    if (siteData.settings.shareTitle === undefined) siteData.settings.shareTitle = siteData.settings.pageTitle || INITIAL_DATA.settings.pageTitle;
-    if (siteData.settings.shareDescription === undefined) siteData.settings.shareDescription = '';
+    // 補充 pageTitle / 分享文字 / favicon（含舊資料遷移）
+    const OLD_DEFAULT_TITLE = 'RE:VIEW Taiwan - 重新觀看行動';
+    const NEW_DEFAULT_TITLE = INITIAL_DATA.settings.pageTitle;
+    if (!siteData.settings.pageTitle) siteData.settings.pageTitle = NEW_DEFAULT_TITLE;
+    if (siteData.settings.pageTitle === OLD_DEFAULT_TITLE) siteData.settings.pageTitle = NEW_DEFAULT_TITLE;
+    if (siteData.settings.mobile?.pageTitle === OLD_DEFAULT_TITLE) siteData.settings.mobile.pageTitle = NEW_DEFAULT_TITLE;
+
+    if (siteData.settings.shareTitle === undefined) siteData.settings.shareTitle = siteData.settings.pageTitle || NEW_DEFAULT_TITLE;
+    if (!siteData.settings.shareTitle) siteData.settings.shareTitle = siteData.settings.pageTitle || NEW_DEFAULT_TITLE;
+    if (siteData.settings.shareTitle === OLD_DEFAULT_TITLE) siteData.settings.shareTitle = NEW_DEFAULT_TITLE;
+
+    if (siteData.settings.shareDescription === undefined) siteData.settings.shareDescription = siteData.settings.shareTitle || (siteData.settings.pageTitle || NEW_DEFAULT_TITLE);
+    if (!siteData.settings.shareDescription) siteData.settings.shareDescription = siteData.settings.shareTitle || (siteData.settings.pageTitle || NEW_DEFAULT_TITLE);
+    if (siteData.settings.shareDescription === OLD_DEFAULT_TITLE) siteData.settings.shareDescription = NEW_DEFAULT_TITLE;
+
     if (siteData.settings.shareImage === undefined) siteData.settings.shareImage = '';
     if (siteData.settings.favicon === undefined) siteData.settings.favicon = '';
     // 補充左側動畫序列設定
@@ -1468,6 +1482,12 @@
                 <input type="text" id="share-title-input" value="${siteData.settings?.shareTitle || settings?.pageTitle || INITIAL_DATA.settings.pageTitle}" class="w-full p-2 border-2 border-black rounded text-sm mb-2" placeholder="例如：ReViewTaiwan 重新觀看行動">
                 <button class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateSettingsGlobal({shareTitle: document.getElementById('share-title-input').value})">套用分享標題</button>
                 <p class="text-xs text-gray-400 mt-1">此項為全站共用（不分手機/桌機），用於 OG/Twitter/Description。</p>
+              </div>
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">轉貼預覽文字（分享簡介）</h4>
+                <input type="text" id="share-desc-input" value="${siteData.settings?.shareDescription || siteData.settings?.shareTitle || settings?.pageTitle || INITIAL_DATA.settings.pageTitle}" class="w-full p-2 border-2 border-black rounded text-sm mb-2" placeholder="例如：ReViewTaiwan 重新觀看行動">
+                <button class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateSettingsGlobal({shareDescription: document.getElementById('share-desc-input').value})">套用分享簡介</button>
+                <p class="text-xs text-gray-400 mt-1">此項為全站共用（不分手機/桌機），會寫入 meta description / og:description / twitter:description。</p>
               </div>
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">網頁小圖示 (Favicon)</h4>
@@ -2879,9 +2899,6 @@
       render();
     }
 
-    applyStyles();
-    render();
-
     // ============ 自訂動畫游標 ============
     const CURSOR_FRAMES = [];
     for (let i = 1; i <= 19; i++) {
@@ -2950,8 +2967,6 @@
       initCursor();
     }
 
-    initCursor();
-
     // ============ 左側動畫 PNG 序列 ============
     const LEFT_ANIM_FRAMES = [];
     for (let i = 0; i <= 152; i++) {
@@ -2997,6 +3012,31 @@
       updateLeftAnimation(updates);
       initLeftAnimation();
     }
+
+    async function waitForCriticalFonts() {
+      if (!document.fonts || typeof document.fonts.load !== 'function') return;
+
+      const settings = getResponsiveObject(siteData.settings || INITIAL_DATA.settings);
+      const font = settings?.englishFont || 'GarmentDistrict';
+      const fontsToLoad = Array.from(new Set(['ChenYuluoyan', font])).filter(Boolean);
+
+      const timeout = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const loads = fontsToLoad.map(f => document.fonts.load(`16px '${f}'`).catch(() => null));
+
+      await Promise.race([Promise.all(loads), timeout(8000)]);
+    }
+
+    async function bootstrapApp() {
+      document.body.classList.add('app-loading');
+      applyStyles();
+      await waitForCriticalFonts();
+      render();
+      if (typeof initCursor === 'function') initCursor();
+      document.body.classList.remove('app-loading');
+      document.body.classList.add('app-ready');
+    }
+
+    bootstrapApp();
   </script>
 </body>
 </html>
