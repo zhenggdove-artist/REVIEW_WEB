@@ -801,6 +801,25 @@
     }
     if (!siteData.hero.mediaItems) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
     if (siteData.hero.currentMediaIndex === undefined) siteData.hero.currentMediaIndex = 0;
+
+    // 文字元件：預設建立 mobile.content，確保桌機/手機「格式」可獨立編輯
+    function ensureTextElementsMobileContent(node) {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) {
+        node.forEach(ensureTextElementsMobileContent);
+        return;
+      }
+
+      const type = node.type;
+      if ((type === 'richtext' || type === 'text') && typeof node.content === 'string') {
+        if (!node.mobile) node.mobile = {};
+        if (node.mobile.content === undefined) node.mobile.content = node.content;
+      }
+
+      Object.values(node).forEach(ensureTextElementsMobileContent);
+    }
+    ensureTextElementsMobileContent(siteData);
+
     const IS_PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 
     let isAdmin = false;
@@ -2962,9 +2981,12 @@
                   <div id="rich-editor" class="rich-editor" contenteditable="true"
                        onmouseup="saveSelection()"
                        onkeyup="saveSelection()"
-                       onfocus="saveSelection()"
-                       onblur="saveRichText('${el.id}')">${viewEl.content}</div>
-                  <p class="text-xs text-gray-400 mt-1">在上方選取文字後，使用上方工具套用樣式</p>
+                       onfocus="saveSelection()">${viewEl.content}</div>
+                  <div class="flex gap-2 mt-3">
+                    <button class="flex-1 px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600"
+                            onclick="saveRichTextShared('${el.id}')">儲存內文（同步桌機/手機）</button>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">格式（粗體/字體/顏色）桌機/手機分開；改字後按上方儲存會同步另一版。</p>
                 </div>
 
                 <!-- 整體樣式 -->
@@ -3185,11 +3207,164 @@
       saveSelection();
     }
 
-    function saveRichText(id) {
-      const editor = document.getElementById('rich-editor');
-      if (editor) {
-        updateElement(id, { content: editor.innerHTML });
+    function normalizeSyncedText(text) {
+      return String(text || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\u00a0/g, ' ')
+        .trim();
+    }
+
+    const TEXT_SYNC_BLOCK_TAGS = new Set([
+      'DIV', 'P', 'PRE', 'LI', 'UL', 'OL',
+      'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+      'SECTION', 'ARTICLE', 'HEADER', 'FOOTER'
+    ]);
+
+    function appendNewline(out) {
+      if (!out.length) {
+        out.push('\n');
+        return;
       }
+      const last = out[out.length - 1] || '';
+      if (last.endsWith('\n')) return;
+      out.push('\n');
+    }
+
+    function htmlNodeToPlainText(node, out) {
+      if (!node) return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        out.push(node.nodeValue || '');
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const tag = node.tagName;
+      if (tag === 'BR') {
+        out.push('\n');
+        return;
+      }
+
+      const isBlock = TEXT_SYNC_BLOCK_TAGS.has(tag);
+      if (isBlock) appendNewline(out);
+      node.childNodes.forEach(child => htmlNodeToPlainText(child, out));
+      if (isBlock) appendNewline(out);
+    }
+
+    function htmlToPlainText(html) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = String(html || '');
+      const out = [];
+      wrapper.childNodes.forEach(child => htmlNodeToPlainText(child, out));
+      return out.join('');
+    }
+
+    const TEXT_SYNC_SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT']);
+    function isInsideSkippedTag(node) {
+      let cur = node && node.parentNode;
+      while (cur && cur.nodeType === Node.ELEMENT_NODE) {
+        if (TEXT_SYNC_SKIP_TAGS.has(cur.tagName)) return true;
+        cur = cur.parentNode;
+      }
+      return false;
+    }
+
+    function applyPlainTextToHtmlPreservingMarkup(html, plainText) {
+      const template = document.createElement('template');
+      template.innerHTML = String(html || '');
+
+      const nodes = [];
+      const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+      let n = walker.nextNode();
+      while (n) {
+        if (!isInsideSkippedTag(n)) nodes.push(n);
+        n = walker.nextNode();
+      }
+
+      if (!nodes.length) return String(html || '');
+
+      const nextText = String(plainText || '');
+      if (nodes.length === 1) {
+        nodes[0].nodeValue = nextText;
+        return template.innerHTML;
+      }
+
+      const lengths = nodes.map(node => (node.nodeValue || '').length);
+      const total = lengths.reduce((acc, len) => acc + len, 0);
+      if (!Number.isFinite(total) || total <= 0) {
+        nodes[0].nodeValue = nextText;
+        for (let i = 1; i < nodes.length; i++) nodes[i].nodeValue = '';
+        return template.innerHTML;
+      }
+
+      let offset = 0;
+      let acc = 0;
+      for (let i = 0; i < nodes.length; i++) {
+        const isLast = i === nodes.length - 1;
+        let take = 0;
+        if (isLast) {
+          take = Math.max(0, nextText.length - offset);
+        } else {
+          acc += (lengths[i] / total) * nextText.length;
+          take = Math.max(0, Math.floor(acc) - offset);
+        }
+        nodes[i].nodeValue = nextText.slice(offset, offset + take);
+        offset += take;
+      }
+
+      return template.innerHTML;
+    }
+
+    function getElementContentForDevice(el, device) {
+      if (!el) return '';
+      if (device === 'mobile') {
+        if (el.mobile && typeof el.mobile.content === 'string') return el.mobile.content;
+        return (typeof el.content === 'string') ? el.content : '';
+      }
+      return (typeof el.content === 'string') ? el.content : '';
+    }
+
+    function setElementContentForDevice(el, device, html, opts = {}) {
+      if (!el) return;
+      if (device === 'mobile') {
+        if (!el.mobile) el.mobile = {};
+        el.mobile.content = String(html || '');
+        return;
+      }
+      el.content = String(html || '');
+    }
+
+    function saveRichTextShared(id) {
+      const editor = document.getElementById('rich-editor');
+      if (!editor) return;
+
+      const el = findElement(id);
+      if (!el) return;
+
+      const device = getActiveDevice();
+      const html = editor.innerHTML;
+      const plain = normalizeSyncedText(editor.innerText || editor.textContent || '');
+
+      // 1) 先儲存目前模式的 HTML（格式分開）
+      setElementContentForDevice(el, device, html);
+
+      // 2) 同步「文字」到另一個模式（不動另一邊的格式）
+      const otherDevice = device === 'mobile' ? 'desktop' : 'mobile';
+      const shouldSyncOther =
+        otherDevice === 'desktop'
+          ? true
+          : !!(el.mobile && typeof el.mobile.content === 'string'); // 只有 mobile 有覆寫時才需要同步
+
+      if (shouldSyncOther) {
+        const otherHtml = getElementContentForDevice(el, otherDevice);
+        const otherPlain = normalizeSyncedText(htmlToPlainText(otherHtml));
+        if (otherPlain !== plain) {
+          const nextOtherHtml = applyPlainTextToHtmlPreservingMarkup(otherHtml, plain);
+          setElementContentForDevice(el, otherDevice, nextOtherHtml);
+        }
+      }
+
+      saveData();
     }
 
     // ============ 輪播渲染 ============
