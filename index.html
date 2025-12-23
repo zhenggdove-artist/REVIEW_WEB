@@ -1485,13 +1485,16 @@
       return Promise.race([Promise.all(waits), timeout(timeoutMs)]);
     }
 
-    async function measureCarouselSpecSize(spec) {
+    async function measureCarouselSpecSize(spec, measureBase = null) {
       const container = getCarouselContainerEl();
-      if (!container) return null;
+      if (!container && !measureBase) return null;
 
-      const parent = container.parentElement || document.body;
-      const measure = container.cloneNode(false);
-      measure.removeAttribute('id');
+      const parent = measureBase?.parent || container?.parentElement || document.body;
+      const measure = document.createElement('div');
+      const className = (measureBase && typeof measureBase.className === 'string') ? measureBase.className : (container ? container.className : '');
+      if (className) measure.className = className;
+      const styleText = (measureBase && typeof measureBase.styleText === 'string') ? measureBase.styleText : (container ? (container.getAttribute('style') || '') : '');
+      if (styleText) measure.setAttribute('style', styleText);
       measure.style.position = 'absolute';
       measure.style.left = '-100000px';
       measure.style.top = '0';
@@ -1547,11 +1550,24 @@
       const task = (async () => {
         let maxWidth = 0;
         let maxStageHeight = 0;
+        const keyAtStart = key;
+        const deviceAtStart = getActiveDevice();
+        const baseContainer = getCarouselContainerEl();
+        const baseStage = getCarouselStageEl();
+        const fallbackWidth = baseContainer ? (baseContainer.offsetWidth || 0) : 0;
+        const fallbackStageHeight = baseStage ? (baseStage.getBoundingClientRect().height || 0) : 0;
+        const measureBase = {
+          parent: baseContainer?.parentElement || document.body,
+          className: baseContainer?.className || '',
+          styleText: baseContainer?.getAttribute('style') || ''
+        };
+
+        const maxHeightLimit = parseFloat(getBoxStyle('mediaBox').maxHeight || 0);
 
         try {
           for (const itemBase of items) {
             const spec = getCarouselMediaSpec(itemBase);
-            const size = await measureCarouselSpecSize(spec);
+            const size = await measureCarouselSpecSize(spec, measureBase);
             if (!size) continue;
             if (Number.isFinite(size.width) && size.width > maxWidth) maxWidth = size.width;
             if (Number.isFinite(size.stageHeight) && size.stageHeight > maxStageHeight) maxStageHeight = size.stageHeight;
@@ -1560,13 +1576,8 @@
           // ignore, fallback below
         }
 
-        const container = getCarouselContainerEl();
-        const stage = getCarouselStageEl();
-        if (container && (!Number.isFinite(maxWidth) || maxWidth <= 0)) maxWidth = container.offsetWidth || 0;
-        if (stage && (!Number.isFinite(maxStageHeight) || maxStageHeight <= 0)) maxStageHeight = stage.getBoundingClientRect().height || 0;
-
-        const boxStyle = getBoxStyle('mediaBox');
-        const maxHeightLimit = parseFloat(boxStyle.maxHeight || 0);
+        if (!Number.isFinite(maxWidth) || maxWidth <= 0) maxWidth = fallbackWidth;
+        if (!Number.isFinite(maxStageHeight) || maxStageHeight <= 0) maxStageHeight = fallbackStageHeight;
         if (Number.isFinite(maxHeightLimit) && maxHeightLimit > 0) {
           maxStageHeight = Math.min(maxStageHeight || maxHeightLimit, maxHeightLimit);
         }
@@ -1578,11 +1589,13 @@
 
         if (!Number.isFinite(reserved.stageHeight) || reserved.stageHeight <= 0) {
           if (Number.isFinite(maxHeightLimit) && maxHeightLimit > 0) reserved.stageHeight = Math.round(maxHeightLimit);
-          else reserved.stageHeight = getActiveDevice() === 'mobile' ? 320 : 450;
+          else reserved.stageHeight = deviceAtStart === 'mobile' ? 320 : 450;
         }
 
-        carouselReservedSizes.set(key, reserved);
-        applyCarouselReservedSize(reserved);
+        carouselReservedSizes.set(keyAtStart, reserved);
+        if (!isAdmin && getCarouselReserveKey() === keyAtStart) {
+          applyCarouselReservedSize(reserved);
+        }
         return reserved;
       })();
 
