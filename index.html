@@ -1086,19 +1086,25 @@
       const viewEl = getResponsiveElement(el);
       const adminClass = isAdmin ? 'admin-highlight' : '';
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
-      const rotation = viewEl.style?.rotation ? `transform: rotate(${viewEl.style.rotation}deg);` : '';
+      const offsetX = parseFloat(viewEl.style?.offsetX) || 0;
+      const offsetY = parseFloat(viewEl.style?.offsetY) || 0;
+      const rotateDeg = parseFloat(viewEl.style?.rotation) || 0;
+      const transforms = [];
+      if (offsetX || offsetY) transforms.push(`translate(${offsetX}px, ${offsetY}px)`);
+      if (rotateDeg) transforms.push(`rotate(${rotateDeg}deg)`);
+      const transformStyle = transforms.length ? `transform: ${transforms.join(' ')};` : '';
       const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
       const youtubeId = getYouTubeId(viewEl.content);
       if (youtubeId) {
-        return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>
+        return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${transformStyle}" ${onClick}>
           <iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>
         </div>`;
       }
       if (viewEl.content && (viewEl.content.includes('.mp4') || viewEl.content.includes('.webm'))) {
-        return `<video src="${viewEl.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}></video>`;
+        return `<video src="${viewEl.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle}" ${onClick}></video>`;
       }
-      return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+      return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle}" ${onClick}>`;
     }
 
     function renderElement(el, extraClass = '') {
@@ -1106,13 +1112,19 @@
       const viewEl = getResponsiveElement(el);
       const adminClass = isAdmin ? 'admin-highlight' : '';
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
-      const rotation = viewEl.style?.rotation ? `transform: rotate(${viewEl.style.rotation}deg);` : '';
+      const offsetX = parseFloat(viewEl.style?.offsetX) || 0;
+      const offsetY = parseFloat(viewEl.style?.offsetY) || 0;
+      const rotateDeg = parseFloat(viewEl.style?.rotation) || 0;
+      const transforms = [];
+      if (offsetX || offsetY) transforms.push(`translate(${offsetX}px, ${offsetY}px)`);
+      if (rotateDeg) transforms.push(`rotate(${rotateDeg}deg)`);
+      const transformStyle = transforms.length ? `transform: ${transforms.join(' ')};` : '';
       const color = viewEl.style?.color ? `color: ${viewEl.style.color};` : '';
       const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
       if (viewEl.type === 'media') return renderMedia(viewEl, extraClass);
       if (viewEl.type === 'image') {
-        return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+        return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle}" ${onClick}>`;
       }
       // 支援圖片模式的標題
       if (viewEl.displayMode === 'image' && viewEl.imageUrl) {
@@ -1122,11 +1134,11 @@
         if (!viewEl.imageWidth && !viewEl.imageHeight) imgStyles.push('max-height:12rem');
         if (viewEl.keepRatio) imgStyles.push('object-fit:contain');
         const styleStr = imgStyles.join(';');
-        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + rotation + '" ' + onClick + '><img src="' + viewEl.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
+        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + transformStyle + '" ' + onClick + '><img src="' + viewEl.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
       }
       const fontSizeStyle = viewEl.style?.fontSizePx ? `font-size:${viewEl.style.fontSizePx}px;` : '';
       const fontSizeClass = !viewEl.style?.fontSizePx && viewEl.style?.fontSize ? viewEl.style.fontSize : '';
-      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color} ${fontSizeStyle}" ${onClick}>${viewEl.content}</div>`;
+      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle} ${color} ${fontSizeStyle}" ${onClick}>${viewEl.content}</div>`;
     }
 
     function renderSidebar() {
@@ -1754,11 +1766,15 @@
       if (!el) return '';
       const viewEl = getResponsiveElement(el);
       const isDecoCircle = el.id === 'deco-circle';
+      const isHeroTitle = el.id === 'hero-title';
       const circleDefaultPosMode = getActiveDevice() === 'mobile' ? 'absolute' : 'fixed';
       const circlePosMode = viewEl.positionMode || circleDefaultPosMode;
       const circleAnchorX = viewEl.anchorX || 'right';
       const circlePosX = viewEl.posX ?? 80;
       const circlePosY = viewEl.posY ?? 80;
+      const circleSize = viewEl.size ?? 160;
+      const titleOffsetX = parseFloat(viewEl.style?.offsetX) || 0;
+      const titleOffsetY = parseFloat(viewEl.style?.offsetY) || 0;
 
       const isMedia = el.type === 'media' || el.id === 'hero-media';
       const isImage = el.type === 'image';
@@ -1930,10 +1946,32 @@
               <label class="block text-sm font-bold mb-2">旋轉角度: ${viewEl.style?.rotation || 0}°</label>
               <input type="range" min="-10" max="10" step="0.5" value="${viewEl.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
             </div>
+            ${isHeroTitle ? `
+              <div class="border-t pt-4 mt-4">
+                <div class="text-sm font-bold mb-3">主標題位置 (X / Y)</div>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs font-bold">水平偏移 X: ${titleOffsetX}px</label>
+                    <input type="range" min="-600" max="600" value="${titleOffsetX}" class="w-full" onchange="updateElement('${el.id}', {style: {offsetX: parseInt(this.value)||0}})">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">垂直偏移 Y: ${titleOffsetY}px</label>
+                    <input type="range" min="-800" max="800" value="${titleOffsetY}" class="w-full" onchange="updateElement('${el.id}', {style: {offsetY: parseInt(this.value)||0}})">
+                  </div>
+                  <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
+                    <strong>提示：</strong>這是位移微調（translate），可在手機/桌機分別設定。
+                  </div>
+                </div>
+              </div>
+            ` : ''}
             ${isDecoCircle ? `
               <div class="border-t pt-4 mt-4">
-                <div class="text-sm font-bold mb-3">圓形裝飾位置</div>
+                <div class="text-sm font-bold mb-3">圓形裝飾（尺寸 / 位置）</div>
                 <div class="space-y-3">
+                  <div>
+                    <label class="text-xs font-bold">尺寸（直徑）: ${circleSize}px</label>
+                    <input type="range" min="40" max="520" value="${circleSize}" class="w-full" onchange="updateElement('deco-circle', {size: parseInt(this.value)||160})">
+                  </div>
                   <div>
                     <label class="text-xs font-bold">捲動行為</label>
                     <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('deco-circle', {positionMode: this.value})">
@@ -2296,11 +2334,12 @@
             const posY = (circle?.posY ?? 80);
             const posClass = posMode === 'fixed' ? 'fixed' : 'absolute';
             const posStyle = `top:${posY}px; ${anchorX}:${posX}px;`;
+            const circleSize = parseInt(circle?.size ?? 160) || 160;
             return `
               <div class="${posClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}" style="${posStyle}">
                 <div
-                  class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
-                  style="transform: rotate(${circle?.style?.rotation || 12}deg);"
+                  class="rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
+                  style="width:${circleSize}px;height:${circleSize}px;transform: rotate(${circle?.style?.rotation || 12}deg);"
                   ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
                 >
                   ${circle?.content ?
