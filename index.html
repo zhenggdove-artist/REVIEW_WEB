@@ -47,6 +47,11 @@
     .media-container { display: inline-block; background: white; padding: 24px; max-width: 100%; }
     .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
 
+    /* Manifesto: prevent <pre> overflow */
+    .manifesto-box { overflow-wrap: anywhere; word-break: break-word; }
+    .manifesto-box pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    .manifesto-box img { max-width: 100%; height: auto; }
+
     /* 輪播：交叉淡入淡出 + 尺寸（高度）漸變 */
     .carousel-container { transition: width 350ms ease; will-change: width; }
     .carousel-stage { position: relative; overflow: hidden; transition: height 350ms ease; will-change: height; }
@@ -2255,6 +2260,7 @@
       // 宣言區塊框設定
       if (activeElementId === 'box-manifesto') {
         const ms = getBoxStyle('manifestoBox');
+        const contentAlign = String(ms.contentAlign || 'left');
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
@@ -2263,6 +2269,15 @@
             </div>
             ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <label class="text-xs font-bold">文字對齊</label>
+                <select class="w-full p-2 border border-gray-300 rounded text-xs mt-1" onchange="updateBoxStyle('manifestoBox', {contentAlign: this.value})">
+                  <option value="left" ${contentAlign === 'left' ? 'selected' : ''}>靠左</option>
+                  <option value="center" ${contentAlign === 'center' ? 'selected' : ''}>置中</option>
+                  <option value="right" ${contentAlign === 'right' ? 'selected' : ''}>置右</option>
+                </select>
+                <p class="text-[11px] text-gray-500 mt-1">手機/桌機可獨立設定</p>
+              </div>
               <div>
                 <label class="text-xs">框線顏色</label>
                 <input type="color" value="${ms.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('manifestoBox', {borderColor: this.value})">
@@ -3166,9 +3181,14 @@
               const ms = getBoxStyle('manifestoBox');
               const msBg = hexToRgba(ms.bgColor || '#ffffff', ms.bgOpacity ?? 50);
               const msShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ms.shadowColor || '#000000', ms.shadowOpacity ?? 80) + ';';
+              const manifestoAlignRaw = String(ms.contentAlign || 'left');
+              const manifestoAlign =
+                (manifestoAlignRaw === 'left' || manifestoAlignRaw === 'center' || manifestoAlignRaw === 'right')
+                  ? manifestoAlignRaw
+                  : 'left';
               return `
-                <div class="p-12 mb-24 relative space-y-8 shadow-inner ${isAdmin ? 'admin-highlight' : ''}"
-                     style="background: ${msBg}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${msShadow}"
+                <div class="manifesto-box p-12 mb-24 relative space-y-8 shadow-inner ${isAdmin ? 'admin-highlight' : ''}"
+                     style="background: ${msBg}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${msShadow} text-align: ${manifestoAlign};"
                      ${isAdmin ? 'onclick="selectElement(\'box-manifesto\')"' : ''}>
                   <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
                   ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
