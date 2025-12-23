@@ -121,7 +121,9 @@
     const INITIAL_DATA = {
   "settings": {
     "englishFont": "ChenYuluoyan",
-    "cursorSize": 70
+    "cursorSize": 70,
+    "pageTitle": "RE:VIEW Taiwan - 重新觀看行動",
+    "favicon": ""
   },
   "background": {
     "color": "#fcfcfc",
@@ -142,7 +144,10 @@
       "id": "left-animation",
       "content": "",
       "width": 200,
-      "height": 300
+      "height": 300,
+      "useSequence": true,
+      "sequenceSpeed": 80,
+      "scrollWithPage": false
     }
   },
   "boxStyles": {
@@ -457,6 +462,15 @@
     }
     if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
+    // 補充 pageTitle 和 favicon
+    if (!siteData.settings.pageTitle) siteData.settings.pageTitle = INITIAL_DATA.settings.pageTitle;
+    if (siteData.settings.favicon === undefined) siteData.settings.favicon = '';
+    // 補充左側動畫序列設定
+    if (siteData.decoration?.leftAnimation) {
+      if (siteData.decoration.leftAnimation.useSequence === undefined) siteData.decoration.leftAnimation.useSequence = true;
+      if (siteData.decoration.leftAnimation.sequenceSpeed === undefined) siteData.decoration.leftAnimation.sequenceSpeed = 80;
+      if (siteData.decoration.leftAnimation.scrollWithPage === undefined) siteData.decoration.leftAnimation.scrollWithPage = false;
+    }
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
     // 補充缺少的 shadowColor 和新區塊樣式
     ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
@@ -817,8 +831,9 @@
     }
 
     function updateDownload(index, field, value) {
-      siteData.downloads.items[index][field] = value;
-      saveData();
+      const item = siteData.downloads.items[index];
+      if (!item) return;
+      updateElement(item.id, { [field]: value });
     }
 
     function removeDownload(index) {
@@ -858,6 +873,22 @@
         bgLayer.style.opacity = (bg.opacity ?? 100) / 100;
       } else {
         bgLayer.style.backgroundImage = 'none';
+      }
+      // 更新頁面標題
+      const pageTitle = settings?.pageTitle || INITIAL_DATA.settings.pageTitle;
+      if (pageTitle) document.title = pageTitle;
+      // 更新 favicon
+      const favicon = settings?.favicon;
+      let faviconLink = document.querySelector('link[rel="icon"]');
+      if (favicon) {
+        if (!faviconLink) {
+          faviconLink = document.createElement('link');
+          faviconLink.rel = 'icon';
+          document.head.appendChild(faviconLink);
+        }
+        faviconLink.href = favicon;
+      } else if (faviconLink) {
+        faviconLink.remove();
       }
     }
 
@@ -1156,6 +1187,23 @@
             </div>
             ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">網頁標題</h4>
+                <input type="text" id="page-title-input" value="${settings?.pageTitle || INITIAL_DATA.settings.pageTitle}" class="w-full p-2 border-2 border-black rounded text-sm mb-2" placeholder="輸入網頁標題">
+                <button class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateSettings({pageTitle: document.getElementById('page-title-input').value})">套用標題</button>
+              </div>
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">網頁小圖示 (Favicon)</h4>
+                <input type="text" id="favicon-input" value="${settings?.favicon || ''}" class="w-full p-2 border-2 border-black rounded text-sm mb-2" placeholder="輸入圖片網址 (建議 32x32 或 64x64)">
+                <button class="w-full py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm mb-2" onclick="updateSettings({favicon: document.getElementById('favicon-input').value})">套用圖示</button>
+                ${settings?.favicon ? `
+                  <div class="flex items-center gap-2 mt-2">
+                    <img src="${settings.favicon}" class="w-8 h-8 border border-gray-300 rounded" alt="預覽">
+                    <button class="text-red-500 text-xs hover:underline" onclick="updateSettings({favicon: ''})">清除圖示</button>
+                  </div>
+                ` : ''}
+                <p class="text-xs text-gray-400 mt-1">建議使用 .ico、.png 或 .svg 格式</p>
+              </div>
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">英文字體</h4>
                 <select class="w-full p-2 border-2 border-black rounded" onchange="updateSettings({englishFont: this.value})">
@@ -1642,10 +1690,87 @@
         `;
       }
 
-      // 左側動畫設定
+      // 圖檔下載設定
+      if (activeElementId === 'downloads-settings') {
+        const ds = getBoxStyle('downloadsBox');
+        const downloads = siteData.downloads?.items || [];
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">圖檔下載</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            ${renderDeviceModeControls()}
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">區塊樣式</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">框線顏色</label>
+                    <input type="color" value="${ds.borderColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('downloadsBox', {borderColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">框線粗細: ${ds.borderWidth}px</label>
+                    <input type="range" min="0" max="10" value="${ds.borderWidth}" class="w-full" onchange="updateBoxStyle('downloadsBox', {borderWidth: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景顏色</label>
+                    <input type="color" value="${ds.bgColor || '#F0FFF0'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('downloadsBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景透明度: ${ds.bgOpacity ?? 100}%</label>
+                    <input type="range" min="0" max="100" value="${ds.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('downloadsBox', {bgOpacity: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影顏色</label>
+                    <input type="color" value="${ds.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('downloadsBox', {shadowColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影透明度: ${ds.shadowOpacity ?? 80}%</label>
+                    <input type="range" min="0" max="100" value="${ds.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('downloadsBox', {shadowOpacity: parseInt(this.value)})">
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">下載項目 (${downloads.length}個)</h4>
+                  <button onclick="addDownload()" class="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
+                </div>
+                <div class="space-y-3 max-h-[420px] overflow-y-auto">
+                  ${downloads.map((dl, idx) => {
+                    const viewDl = getResponsiveElement(dl);
+                    return `
+                      <div class="border-2 border-gray-300 rounded p-2">
+                        <div class="flex justify-between items-center mb-2">
+                          <span class="text-xs font-bold">#${idx + 1}</span>
+                          <button onclick="removeDownload(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                        </div>
+                        <input type="text" value="${viewDl.name || ''}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="下載名稱" onchange="updateDownload(${idx}, 'name', this.value)">
+                        <input type="text" value="${viewDl.url || ''}" class="w-full p-1 border border-gray-300 rounded text-xs mb-1" placeholder="下載連結（可留空）" onchange="updateDownload(${idx}, 'url', this.value)">
+                        <input type="text" value="${viewDl.description || ''}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="描述" onchange="updateDownload(${idx}, 'description', this.value)">
+                        ${(getActiveDevice() === 'mobile' && dl.mobile) ? `
+                          <button onclick="clearElementMobileOverrides('${dl.id}')" class="mt-2 w-full py-1 border border-gray-400 rounded hover:bg-gray-100 text-xs">清除手機版覆寫</button>
+                        ` : ''}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+                <div class="mt-3 p-3 bg-blue-50 border border-blue-300 rounded text-xs">
+                  <strong>提示：</strong>你現在填寫的下載連結會依「桌機/手機」模式分開儲存，兩邊互不影響。
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 左側動畫設定 (PNG 序列)
       if (activeElementId === 'left-animation') {
         const leftAnimBase = siteData.decoration?.leftAnimation || {};
         const leftAnim = getResponsiveObject(leftAnimBase);
+        const useSequence = leftAnim.useSequence !== false;
+        const scrollWithPage = leftAnim.scrollWithPage === true;
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
@@ -1654,18 +1779,39 @@
             </div>
             ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label class="block text-sm font-bold mb-2">動畫/圖片網址</label>
-                <input type="text" value="${leftAnim.content || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入 GIF、影片或圖片網址" onchange="updateLeftAnimation({content: this.value})">
-                <p class="text-xs text-gray-400 mt-1">支援 GIF、MP4、WebM 或圖片</p>
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-3 text-sm">PNG 序列動畫</h4>
+                <div class="flex items-center gap-2 mb-3">
+                  <input type="checkbox" id="left-anim-enabled" ${useSequence ? 'checked' : ''}>
+                  <label for="left-anim-enabled" class="text-sm font-bold">啟用 PNG 序列動畫</label>
+                  <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateLeftAnimationSettings({useSequence: document.getElementById('left-anim-enabled').checked})">套用</button>
+                </div>
+                <div>
+                  <label class="block text-sm font-bold mb-2">動畫速度: ${leftAnim.sequenceSpeed || 80}ms</label>
+                  <div class="flex gap-2 items-center">
+                    <input type="range" id="left-anim-speed" min="30" max="200" value="${leftAnim.sequenceSpeed || 80}" class="flex-1" oninput="document.getElementById('left-anim-speed-val').textContent=this.value+'ms'">
+                    <span id="left-anim-speed-val" class="text-xs w-12">${leftAnim.sequenceSpeed || 80}ms</span>
+                    <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateLeftAnimationSettings({sequenceSpeed: parseInt(document.getElementById('left-anim-speed').value)||80})">套用</button>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">數值越小動畫越快</p>
+                </div>
+              </div>
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-3 text-sm">滾動行為</h4>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="left-anim-scroll" ${scrollWithPage ? 'checked' : ''}>
+                  <label for="left-anim-scroll" class="text-sm">隨頁面滾動</label>
+                  <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateLeftAnimation({scrollWithPage: document.getElementById('left-anim-scroll').checked})">套用</button>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">勾選後動畫會跟著頁面一起滾動，否則固定在螢幕上</p>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">寬度: ${leftAnim.width || 200}px</label>
-                <input type="range" min="100" max="400" value="${leftAnim.width || 200}" class="w-full" onchange="updateLeftAnimation({width: parseInt(this.value)})">
+                <input type="range" min="50" max="600" value="${leftAnim.width || 200}" class="w-full" onchange="updateLeftAnimation({width: parseInt(this.value)})">
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">高度: ${leftAnim.height || 300}px</label>
-                <input type="range" min="100" max="600" value="${leftAnim.height || 300}" class="w-full" onchange="updateLeftAnimation({height: parseInt(this.value)})">
+                <input type="range" min="50" max="800" value="${leftAnim.height || 300}" class="w-full" onchange="updateLeftAnimation({height: parseInt(this.value)})">
               </div>
               <div class="border-t pt-4 mt-4">
                 <h4 class="font-bold mb-3 text-sm">位置調整</h4>
@@ -1680,30 +1826,16 @@
                   </div>
                 </div>
                 <div class="mt-4">
-                  <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${leftAnim.posY ?? 50}%</label>
-                  <input type="range" min="0" max="100" value="${leftAnim.posY ?? 50}" class="w-full" onchange="updateLeftAnimation({posY: parseInt(this.value)})">
+                  <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${scrollWithPage ? leftAnim.posY ?? 50 : leftAnim.posY ?? 50}${scrollWithPage ? 'px' : '%'}</label>
+                  <input type="range" min="${scrollWithPage ? '0' : '0'}" max="${scrollWithPage ? '3000' : '100'}" value="${leftAnim.posY ?? 50}" class="w-full" onchange="updateLeftAnimation({posY: parseInt(this.value)})">
                   <div class="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>上 0%</span>
-                    <span>中 50%</span>
-                    <span>下 100%</span>
+                    ${scrollWithPage ? '<span>0px</span><span>1500px</span><span>3000px</span>' : '<span>上 0%</span><span>中 50%</span><span>下 100%</span>'}
                   </div>
                 </div>
               </div>
-              ${leftAnim.content ? `
-                <div>
-                  <div class="text-sm text-gray-500 mb-1">預覽：</div>
-                  ${leftAnim.content.includes('.mp4') || leftAnim.content.includes('.webm') ?
-                    `<video src="${leftAnim.content}" autoplay loop muted playsinline class="w-full max-h-48 object-contain border-2 border-gray-300 rounded"></video>` :
-                    `<img src="${leftAnim.content}" class="w-full max-h-48 object-contain border-2 border-gray-300 rounded">`
-                  }
-                </div>
-              ` : ''}
               <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
-                <strong>提示：</strong>留空則不顯示左側區域。動畫區域會固定在網頁左側中央位置。
+                <strong>說明：</strong>使用 docs/assets/sequence 資料夾中的 PNG 序列作為動畫。共 153 張圖片自動循環播放。
               </div>
-              ${leftAnim.content ? `
-                <button onclick="updateLeftAnimation({content: ''})" class="w-full py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 text-sm">清除動畫</button>
-              ` : ''}
               ${(getActiveDevice() === 'mobile' && siteData.decoration?.leftAnimation?.mobile) ? `
                 <button onclick="clearLeftAnimationMobileOverrides()" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
               ` : ''}
@@ -2239,7 +2371,8 @@
               const dsBg = hexToRgba(ds.bgColor || '#F0FFF0', ds.bgOpacity ?? 100);
               const dsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ds.shadowColor || '#000000', ds.shadowOpacity ?? 80) + ';';
               const downloads = siteData.downloads?.items || [];
-              const hasDownloads = downloads.some(dl => dl.url);
+              const viewDownloads = downloads.map(dl => getResponsiveElement(dl));
+              const hasDownloads = viewDownloads.some(dl => dl.url);
               if (!hasDownloads && !isAdmin) return '';
               return `
                 <div class="mb-24">
@@ -2248,15 +2381,24 @@
                        style="background: ${dsBg}; border: ${ds.borderWidth}px solid ${ds.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${dsShadow}"
                        ${isAdmin ? 'onclick="selectElement(\'downloads-settings\')"' : ''}>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      ${downloads.filter(dl => dl.url || isAdmin).map((dl, idx) => `
-                        <a href="${dl.url || '#'}" ${dl.url ? 'download' : ''} target="_blank" rel="noopener noreferrer"
-                           class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform ${!dl.url ? 'opacity-50' : ''}"
-                           style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
-                          <div class="text-3xl mb-2">📥</div>
-                          <div class="font-bold text-lg mb-1">${dl.name}</div>
-                          <div class="text-sm text-gray-600">${dl.description || ''}</div>
-                          ${!dl.url && isAdmin ? '<div class="text-xs text-red-500 mt-1">(尚未設定連結)</div>' : ''}
-                        </a>
+                      ${viewDownloads.filter(dl => dl.url || isAdmin).map((dl, idx) => `
+                        ${isAdmin ? `
+                          <div class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform cursor-pointer ${!dl.url ? 'opacity-50' : ''}"
+                               style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
+                            <div class="text-3xl mb-2">📥</div>
+                            <div class="font-bold text-lg mb-1">${dl.name}</div>
+                            <div class="text-sm text-gray-600">${dl.description || ''}</div>
+                            ${!dl.url ? '<div class="text-xs text-red-500 mt-1">(尚未設定連結)</div>' : ''}
+                          </div>
+                        ` : `
+                          <a href="${dl.url}" download target="_blank" rel="noopener noreferrer"
+                             class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform"
+                             style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
+                            <div class="text-3xl mb-2">📥</div>
+                            <div class="font-bold text-lg mb-1">${dl.name}</div>
+                            <div class="text-sm text-gray-600">${dl.description || ''}</div>
+                          </a>
+                        `}
                       `).join('')}
                     </div>
                   </div>
@@ -2296,28 +2438,28 @@
             <div class="absolute bottom-40 left-10 w-60 h-2 border-b-2 border-black" style="transform: rotate(-6deg);"></div>
           </div>
 
-          <!-- 左側動畫區域 -->
+          <!-- 左側動畫區域 (PNG 序列) -->
           ${(() => {
             const leftAnimBase = siteData.decoration?.leftAnimation;
             const leftAnim = getResponsiveObject(leftAnimBase);
-            const hasContent = leftAnim?.content;
-            if (!hasContent && !isAdmin) return '';
+            const useSequence = leftAnim?.useSequence !== false;
+            const scrollWithPage = leftAnim?.scrollWithPage === true;
             const posX = leftAnim?.posX ?? 30;
             const posY = leftAnim?.posY ?? 50;
+            const positionClass = scrollWithPage ? 'absolute' : 'fixed';
+            const positionStyle = scrollWithPage ? `left: ${posX}px; top: ${posY}px;` : `left: ${posX}px; top: ${posY}%;`;
             return `
-              <div class="fixed z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}"
-                   style="left: ${posX}px; top: ${posY}%;">
+              <div id="left-anim-sequence" class="${positionClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}"
+                   style="${positionStyle}">
                 <div
                   class="${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'left-animation' ? 'ring-4 ring-pink-500' : ''}"
-                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px; transform: translateY(-50%);"
+                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px; ${scrollWithPage ? '' : 'transform: translateY(-50%);'}"
                   ${isAdmin ? 'onclick="selectElement(\'left-animation\')"' : ''}
                 >
-                  ${hasContent ?
-                    (leftAnim.content.includes('.mp4') || leftAnim.content.includes('.webm') ?
-                      `<video src="${leftAnim.content}" autoplay loop muted playsinline class="w-full h-full object-contain"></video>` :
-                      `<img src="${leftAnim.content}" class="w-full h-full object-contain" alt="動畫">`) :
+                  ${useSequence ?
+                    `<img src="./docs/assets/sequence/frame_00000.png" class="w-full h-full object-contain" alt="動畫">` :
                     `<div class="w-full h-full border-2 border-dashed border-gray-400 rounded flex items-center justify-center text-gray-400 text-sm text-center p-4 bg-gray-50/50">
-                      點擊設定<br>背景圖片
+                      PNG 序列動畫已關閉
                     </div>`
                   }
                 </div>
@@ -2353,6 +2495,10 @@
         </div>
       `;
       updateMobilePreviewOverlay();
+      // 初始化左側動畫
+      setTimeout(() => {
+        if (typeof initLeftAnimation === 'function') initLeftAnimation();
+      }, 100);
     }
 
     function showLoginModal() {
@@ -2459,6 +2605,52 @@
     }
 
     initCursor();
+
+    // ============ 左側動畫 PNG 序列 ============
+    const LEFT_ANIM_FRAMES = [];
+    for (let i = 0; i <= 152; i++) {
+      LEFT_ANIM_FRAMES.push('./docs/assets/sequence/frame_' + String(i).padStart(5, '0') + '.png');
+    }
+    let leftAnimFrame = 0;
+    let leftAnimInterval = null;
+
+    function getLeftAnimSettings() {
+      return getResponsiveObject(siteData.decoration?.leftAnimation || {});
+    }
+
+    function initLeftAnimation() {
+      const settings = getLeftAnimSettings();
+      const useSequence = settings.useSequence !== false;
+      const speed = settings.sequenceSpeed || 80;
+
+      const leftAnimEl = document.getElementById('left-anim-sequence');
+      if (!leftAnimEl) return;
+
+      const leftAnimImg = leftAnimEl.querySelector('img');
+      if (!leftAnimImg) return;
+
+      if (useSequence) {
+        // 預載圖片
+        LEFT_ANIM_FRAMES.forEach(src => {
+          const img = new Image();
+          img.src = src;
+        });
+
+        // 開始動畫
+        if (leftAnimInterval) clearInterval(leftAnimInterval);
+        leftAnimInterval = setInterval(() => {
+          leftAnimFrame = (leftAnimFrame + 1) % LEFT_ANIM_FRAMES.length;
+          leftAnimImg.src = LEFT_ANIM_FRAMES[leftAnimFrame];
+        }, speed);
+      } else {
+        if (leftAnimInterval) clearInterval(leftAnimInterval);
+      }
+    }
+
+    function updateLeftAnimationSettings(updates) {
+      updateLeftAnimation(updates);
+      initLeftAnimation();
+    }
   </script>
 </body>
 </html>
