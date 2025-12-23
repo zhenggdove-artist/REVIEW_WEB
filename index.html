@@ -46,6 +46,10 @@
     /* 自適應內容的白色底框 */
     .media-container { display: inline-block; background: white; padding: 24px; max-width: 100%; }
     .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
+
+    /* 輪播淡出/淡入 */
+    .carousel-media-wrap { display: block; transition: opacity 350ms ease; will-change: opacity; }
+    .carousel-media-wrap.carousel-hidden { opacity: 0; }
     /* 自訂動畫游標 */
     .custom-cursor-enabled { cursor: none !important; }
     .custom-cursor-enabled * { cursor: none !important; }
@@ -1333,20 +1337,151 @@
     }
 
     // ============ 輪播功能 ============
-    function nextMedia() {
-      const items = siteData.hero.mediaItems;
-      if (items.length > 1) {
-        siteData.hero.currentMediaIndex = (siteData.hero.currentMediaIndex + 1) % items.length;
-        saveData();
+    const CAROUSEL_AUTO_INTERVAL_MS = 5000;
+    const CAROUSEL_FADE_MS = 350;
+    let carouselAutoTimer = null;
+    let carouselFadeTimer = null;
+    let carouselIsAnimating = false;
+    let carouselRenderHiddenOnce = false;
+
+    function getCarouselItems() {
+      const items = siteData?.hero?.mediaItems;
+      return Array.isArray(items) ? items : [];
+    }
+
+    function getCarouselIndex() {
+      const idx = siteData?.hero?.currentMediaIndex;
+      return Number.isFinite(idx) ? idx : 0;
+    }
+
+    function getCarouselSlotEl() {
+      return document.getElementById('hero-carousel-slot');
+    }
+
+    function getCarouselMediaEl() {
+      return document.getElementById('hero-carousel-media');
+    }
+
+    function renderCarouselSlot() {
+      const slot = getCarouselSlotEl();
+      if (!slot) {
+        render();
+        return;
+      }
+      slot.innerHTML = renderCarousel();
+      syncCarouselUI();
+    }
+
+    function stopCarouselAuto() {
+      if (carouselAutoTimer) {
+        clearTimeout(carouselAutoTimer);
+        carouselAutoTimer = null;
       }
     }
 
-    function prevMedia() {
-      const items = siteData.hero.mediaItems;
-      if (items.length > 1) {
-        siteData.hero.currentMediaIndex = (siteData.hero.currentMediaIndex - 1 + items.length) % items.length;
-        saveData();
+    function scheduleCarouselAuto() {
+      stopCarouselAuto();
+      if (isAdmin) return;
+      if (document.hidden) return;
+      const items = getCarouselItems();
+      if (items.length <= 1) return;
+
+      carouselAutoTimer = setTimeout(() => {
+        carouselAutoTimer = null;
+        if (isAdmin) return;
+        if (document.hidden) {
+          scheduleCarouselAuto();
+          return;
+        }
+        nextMedia({ fromAuto: true });
+      }, CAROUSEL_AUTO_INTERVAL_MS);
+    }
+
+    function syncCarouselUI() {
+      if (carouselRenderHiddenOnce) {
+        const mediaEl = getCarouselMediaEl();
+        if (mediaEl) {
+          mediaEl.classList.add('carousel-hidden');
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              const el = getCarouselMediaEl();
+              if (el) el.classList.remove('carousel-hidden');
+            });
+          });
+        }
+        carouselRenderHiddenOnce = false;
       }
+      scheduleCarouselAuto();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopCarouselAuto();
+      else scheduleCarouselAuto();
+    });
+
+    function goToMediaIndex(nextIndex, opts = {}) {
+      const items = getCarouselItems();
+      if (items.length <= 1) {
+        scheduleCarouselAuto();
+        return;
+      }
+
+      const targetIndex = ((nextIndex % items.length) + items.length) % items.length;
+      const currentIndex = getCarouselIndex();
+      if (targetIndex === currentIndex) {
+        scheduleCarouselAuto();
+        return;
+      }
+
+      if (carouselIsAnimating) {
+        scheduleCarouselAuto();
+        return;
+      }
+
+      carouselIsAnimating = true;
+      scheduleCarouselAuto();
+
+      const mediaEl = getCarouselMediaEl();
+      if (!mediaEl) {
+        siteData.hero.currentMediaIndex = targetIndex;
+        renderCarouselSlot();
+        carouselIsAnimating = false;
+        return;
+      }
+
+      mediaEl.classList.add('carousel-hidden');
+
+      if (carouselFadeTimer) clearTimeout(carouselFadeTimer);
+      carouselFadeTimer = setTimeout(() => {
+        carouselFadeTimer = null;
+        siteData.hero.currentMediaIndex = targetIndex;
+        carouselRenderHiddenOnce = true;
+        renderCarouselSlot();
+
+        setTimeout(() => {
+          carouselIsAnimating = false;
+        }, CAROUSEL_FADE_MS);
+      }, CAROUSEL_FADE_MS);
+    }
+
+    function nextMedia(opts = {}) {
+      const items = getCarouselItems();
+      if (items.length <= 1) {
+        scheduleCarouselAuto();
+        return;
+      }
+      const currentIndex = getCarouselIndex();
+      goToMediaIndex(currentIndex + 1, opts);
+    }
+
+    function prevMedia(opts = {}) {
+      const items = getCarouselItems();
+      if (items.length <= 1) {
+        scheduleCarouselAuto();
+        return;
+      }
+      const currentIndex = getCarouselIndex();
+      goToMediaIndex(currentIndex - 1, opts);
     }
 
     function addMediaItem() {
@@ -2673,11 +2808,13 @@
       }
 
       const showNav = items.length > 1;
+      const mediaWrapClass = carouselRenderHiddenOnce ? 'carousel-hidden' : '';
+      const wrappedMediaContent = `<div id="hero-carousel-media" class="carousel-media-wrap ${mediaWrapClass}">${mediaContent}</div>`;
       return `
         <div class="media-container relative cursor-pointer"
              style="${borderStyle} ${bgStyle} ${shadowStyle} ${maxWidthStyle} ${maxHeightStyle} overflow: hidden; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
              onclick="${isAdmin ? '' : 'nextMedia()'}">
-          ${mediaContent}
+          ${wrappedMediaContent}
           ${showNav ? `
             <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
               ${items.map((_, idx) => `
@@ -2736,7 +2873,9 @@
             <div class="text-center mb-24">
               ${renderElement(d.hero.title, 'mb-8')}
               ${renderElement(d.hero.subtitle, 'mb-16')}
-            ${renderCarousel()}
+              <div id="hero-carousel-slot">
+                ${renderCarousel()}
+              </div>
             </div>
 
             ${(() => {
@@ -3004,6 +3143,7 @@
         </div>
       `;
       updateMobilePreviewOverlay();
+      syncCarouselUI();
       // 初始化左側動畫
       setTimeout(() => {
         if (typeof initLeftAnimation === 'function') initLeftAnimation();
