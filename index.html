@@ -137,7 +137,7 @@
       "content": "https://duk.tw/d0sLoe.jpg",
       "style": {
         "rotation": -5.5,
-        "opacity": 100
+        "opacity": 30
       }
     },
     "leftAnimation": {
@@ -493,7 +493,7 @@
     if (!siteData.downloads) siteData.downloads = JSON.parse(JSON.stringify(INITIAL_DATA.downloads));
     // 補充圓形圖透明度
     if (siteData.decoration?.circleImage?.style && siteData.decoration.circleImage.style.opacity === undefined) {
-      siteData.decoration.circleImage.style.opacity = 100;
+      siteData.decoration.circleImage.style.opacity = 30;
     }
     // 補充 boxStyles 的透明度設定
     ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
@@ -621,6 +621,16 @@
       merged.type = el.type;
       merged.style = { ...(el.style || {}), ...(el.mobile.style || {}) };
       return merged;
+    }
+
+    const LEGACY_CIRCLE_OPACITY_DEFAULT = 30;
+    function getCircleImageOpacityPercent(circleEl) {
+      const style = (circleEl && circleEl.style) ? circleEl.style : {};
+      const edited = style.opacityEdited === true;
+      const n = parseFloat(style.opacity);
+      if (!Number.isFinite(n)) return LEGACY_CIRCLE_OPACITY_DEFAULT;
+      if (!edited && n === 100) return LEGACY_CIRCLE_OPACITY_DEFAULT;
+      return Math.max(0, Math.min(100, n));
     }
 
     function renderDeviceModeControls() {
@@ -1915,6 +1925,7 @@
       const circlePosX = viewEl.posX ?? 80;
       const circlePosY = viewEl.posY ?? 80;
       const circleSize = viewEl.size ?? 160;
+      const circleOpacity = getCircleImageOpacityPercent(viewEl);
       const titleOffsetX = parseFloat(viewEl.style?.offsetX) || 0;
       const titleOffsetY = parseFloat(viewEl.style?.offsetY) || 0;
 
@@ -2113,6 +2124,10 @@
                   <div>
                     <label class="text-xs font-bold">尺寸（直徑）: ${circleSize}px</label>
                     <input type="range" min="40" max="520" value="${circleSize}" class="w-full" onchange="updateElement('deco-circle', {size: parseInt(this.value)||160})">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">圖片透明度: ${circleOpacity}%</label>
+                    <input type="range" min="0" max="100" value="${circleOpacity}" class="w-full" onchange="updateElement('deco-circle', {style: {opacity: parseInt(this.value), opacityEdited: true}})">
                   </div>
                   <div>
                     <label class="text-xs font-bold">捲動行為</label>
@@ -2487,15 +2502,16 @@
             const posClass = posMode === 'fixed' ? 'fixed' : 'absolute';
             const posStyle = `top:${posY}px; ${anchorX}:${posX}px;`;
             const circleSize = parseInt(circle?.size ?? 160) || 160;
+            const circleOpacity = getCircleImageOpacityPercent(circle);
             return `
               <div class="${posClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}" style="${posStyle}">
                 <div
-                  class="rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
+                  class="rounded-full overflow-hidden border-2 border-black ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
                   style="width:${circleSize}px;height:${circleSize}px;transform: rotate(${circle?.style?.rotation || 12}deg);"
                   ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
                 >
                   ${circle?.content ?
-                    `<img src="${circle.content}" class="w-full h-full object-cover" alt="裝飾圖片">` :
+                    `<img src="${circle.content}" class="w-full h-full object-cover" style="opacity:${circleOpacity / 100};" alt="裝飾圖片">` :
                     `<div class="w-full h-full bg-gray-300"></div>`
                   }
                 </div>
