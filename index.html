@@ -111,6 +111,53 @@
       flex: 1;
       background: #fff;
     }
+
+    /* 主標題圖片特效 */
+    .hero-title-effect {
+      --hero-fx-color: #00ffff;
+      --hero-fx-speed: 8s;
+      --hero-fx-glow1: 6px;
+      --hero-fx-glow2: 14px;
+      --hero-fx-glow3: 28px;
+    }
+    .hero-title-effect img { display: block; }
+
+    .hero-title-effect-flicker img {
+      animation: heroTitleFlicker var(--hero-fx-speed) infinite;
+      filter:
+        drop-shadow(0 0 var(--hero-fx-glow1) var(--hero-fx-color))
+        drop-shadow(0 0 var(--hero-fx-glow2) var(--hero-fx-color))
+        drop-shadow(0 0 var(--hero-fx-glow3) var(--hero-fx-color));
+    }
+    @keyframes heroTitleFlicker {
+      0%, 100% { opacity: 1; }
+      6% { opacity: 0.9; }
+      7% { opacity: 1; }
+      16% { opacity: 0.85; }
+      17% { opacity: 1; }
+      40% { opacity: 0.75; }
+      41% { opacity: 1; }
+      58% { opacity: 0.92; }
+      59% { opacity: 1; }
+      74% { opacity: 0.88; }
+      75% { opacity: 1; }
+    }
+
+    .hero-title-effect-neon img {
+      filter:
+        drop-shadow(0 0 var(--hero-fx-glow1) var(--hero-fx-color))
+        drop-shadow(0 0 var(--hero-fx-glow2) var(--hero-fx-color))
+        drop-shadow(0 0 var(--hero-fx-glow3) var(--hero-fx-color));
+      animation: heroTitleNeonPulse var(--hero-fx-speed) ease-in-out infinite;
+    }
+    @keyframes heroTitleNeonPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+
+    .hero-title-effect-ripple img {
+      filter: url(#fx-water-ripple);
+    }
   </style>
 </head>
 <body>
@@ -118,6 +165,12 @@
   <div id="custom-cursor"><img src="" alt=""></div>
   <div id="app"></div>
   <div id="mobile-preview-overlay"></div>
+  <svg id="fx-filters" aria-hidden="true" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden">
+    <filter id="fx-water-ripple" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feTurbulence id="fx-water-ripple-turbulence" type="turbulence" baseFrequency="0.010 0.020" numOctaves="2" seed="2" result="noise" />
+      <feDisplacementMap id="fx-water-ripple-displacement" in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
 
   <script>
     // ============ 可用字體列表 ============
@@ -1011,6 +1064,68 @@
       } else if (faviconLink) {
         faviconLink.remove();
       }
+
+      syncHeroTitleImageEffects();
+    }
+
+    let heroTitleRippleRaf = null;
+    let heroTitleRippleStart = 0;
+    let heroTitleRippleLastUpdate = 0;
+
+    function clampNumber(value, min, max, fallback) {
+      const n = parseFloat(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function stopHeroTitleRipple() {
+      if (heroTitleRippleRaf) cancelAnimationFrame(heroTitleRippleRaf);
+      heroTitleRippleRaf = null;
+    }
+
+    function startHeroTitleRipple() {
+      if (heroTitleRippleRaf) return;
+      const turb = document.getElementById('fx-water-ripple-turbulence');
+      const disp = document.getElementById('fx-water-ripple-displacement');
+      if (!turb || !disp) return;
+
+      heroTitleRippleStart = performance.now();
+      heroTitleRippleLastUpdate = 0;
+
+      const tick = (now) => {
+        const title = getResponsiveElement(siteData.hero?.title);
+        const type = String(title?.style?.imageEffect || 'none');
+        if (type !== 'ripple') {
+          stopHeroTitleRipple();
+          return;
+        }
+
+        const speed = clampNumber(title?.style?.imageEffectSpeed, 0.5, 20, 8);
+        const strength = clampNumber(title?.style?.imageEffectStrength, 0, 100, 60);
+        const scale = Math.round(strength * 0.5); // 0-50
+        disp.setAttribute('scale', String(scale));
+
+        if (now - heroTitleRippleLastUpdate > 50) {
+          const t = (now - heroTitleRippleStart) / 1000;
+          const phase = (t / speed) * Math.PI * 2;
+          const drift = 0.002 + (strength / 100) * 0.004;
+          const fx = 0.010 + drift * Math.sin(phase);
+          const fy = 0.020 + drift * Math.cos(phase);
+          turb.setAttribute('baseFrequency', `${fx.toFixed(4)} ${fy.toFixed(4)}`);
+          heroTitleRippleLastUpdate = now;
+        }
+
+        heroTitleRippleRaf = requestAnimationFrame(tick);
+      };
+
+      heroTitleRippleRaf = requestAnimationFrame(tick);
+    }
+
+    function syncHeroTitleImageEffects() {
+      const title = getResponsiveElement(siteData.hero?.title);
+      const type = String(title?.style?.imageEffect || 'none');
+      if (type === 'ripple') startHeroTitleRipple();
+      else stopHeroTitleRipple();
     }
 
     function findElement(id, obj = siteData) {
@@ -1294,7 +1409,31 @@
         if (!viewEl.imageWidth && !viewEl.imageHeight) imgStyles.push('max-height:12rem');
         if (viewEl.keepRatio) imgStyles.push('object-fit:contain');
         const styleStr = imgStyles.join(';');
-        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + transformStyle + '" ' + onClick + '><img src="' + viewEl.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
+
+        const isHeroTitleImage = el.id === 'hero-title';
+        let effectClass = '';
+        let effectVars = '';
+        if (isHeroTitleImage) {
+          const effectType = String(viewEl.style?.imageEffect || 'none');
+          if (effectType && effectType !== 'none') {
+            const speedNum = parseFloat(viewEl.style?.imageEffectSpeed);
+            const speed = Number.isFinite(speedNum) ? Math.max(0.5, Math.min(20, speedNum)) : 8;
+            const color = String(viewEl.style?.imageEffectColor || '#00ffff');
+            const strengthNum = parseFloat(viewEl.style?.imageEffectStrength);
+            const strength = Number.isFinite(strengthNum) ? Math.max(0, Math.min(100, strengthNum)) : 60;
+            const glow = Math.round((strength / 100) * 28);
+            const glow1 = Math.max(0, Math.round(glow * 0.4));
+            const glow2 = Math.max(0, Math.round(glow * 0.9));
+            const glow3 = Math.max(0, Math.round(glow * 1.8));
+            const cssColor = glow > 0 ? color : 'transparent';
+            effectClass = `hero-title-effect hero-title-effect-${effectType}`;
+            effectVars = `--hero-fx-color:${cssColor};--hero-fx-speed:${speed}s;--hero-fx-glow1:${glow1}px;--hero-fx-glow2:${glow2}px;--hero-fx-glow3:${glow3}px;`;
+          }
+        }
+
+        const wrapperClass = [adminClass, activeClass, extraClass, effectClass].filter(Boolean).join(' ');
+        const wrapperStyle = (transformStyle || '') + (effectVars ? ' ' + effectVars : '');
+        return '<div class="' + wrapperClass + '" style="' + wrapperStyle + '" ' + onClick + '><img src="' + viewEl.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
       }
       const fontSizeStyle = viewEl.style?.fontSizePx ? `font-size:${viewEl.style.fontSizePx}px;` : '';
       const fontSizeClass = !viewEl.style?.fontSizePx && viewEl.style?.fontSize ? viewEl.style.fontSize : '';
@@ -2043,6 +2182,13 @@
       const circleOpacity = getCircleImageOpacityPercent(viewEl);
       const titleOffsetX = parseFloat(viewEl.style?.offsetX) || 0;
       const titleOffsetY = parseFloat(viewEl.style?.offsetY) || 0;
+      const heroTitleHasImage = isHeroTitle && viewEl.displayMode === 'image' && !!viewEl.imageUrl;
+      const heroTitleEffectType = String(viewEl.style?.imageEffect || 'none');
+      const heroTitleEffectSpeedNum = parseFloat(viewEl.style?.imageEffectSpeed);
+      const heroTitleEffectSpeed = Number.isFinite(heroTitleEffectSpeedNum) ? Math.max(0.5, Math.min(20, heroTitleEffectSpeedNum)) : 8;
+      const heroTitleEffectColor = String(viewEl.style?.imageEffectColor || '#00ffff');
+      const heroTitleEffectStrengthNum = parseFloat(viewEl.style?.imageEffectStrength);
+      const heroTitleEffectStrength = Number.isFinite(heroTitleEffectStrengthNum) ? Math.max(0, Math.min(100, heroTitleEffectStrengthNum)) : 60;
 
       const isMedia = el.type === 'media' || el.id === 'hero-media';
       const isImage = el.type === 'image';
@@ -2231,6 +2377,50 @@
                   </div>
                 </div>
               </div>
+              ${heroTitleHasImage ? `
+                <div class="border-t pt-4 mt-4">
+                  <div class="text-sm font-bold mb-3">主標題圖片特效</div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="text-xs font-bold">特效類型</label>
+                      <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('${el.id}', {style: {imageEffect: this.value}})">
+                        <option value="none" ${heroTitleEffectType === 'none' ? 'selected' : ''}>無</option>
+                        <option value="flicker" ${heroTitleEffectType === 'flicker' ? 'selected' : ''}>緩慢閃動</option>
+                        <option value="neon" ${heroTitleEffectType === 'neon' ? 'selected' : ''}>霓虹燈管</option>
+                        <option value="ripple" ${heroTitleEffectType === 'ripple' ? 'selected' : ''}>水波紋</option>
+                      </select>
+                    </div>
+
+                    ${heroTitleEffectType !== 'none' ? `
+                      <div>
+                        <label class="text-xs font-bold">速度: ${heroTitleEffectSpeed}s</label>
+                        <input type="range" min="0.5" max="20" step="0.5" value="${heroTitleEffectSpeed}" class="w-full" onchange="updateElement('${el.id}', {style: {imageEffectSpeed: parseFloat(this.value)}})">
+                      </div>
+                    ` : ''}
+
+                    ${(heroTitleEffectType === 'flicker' || heroTitleEffectType === 'neon') ? `
+                      <div>
+                        <label class="text-xs font-bold">顏色</label>
+                        <div class="flex gap-2 items-center mt-1">
+                          <input type="color" value="${heroTitleEffectColor}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded" onchange="updateElement('${el.id}', {style: {imageEffectColor: this.value}})">
+                          <input type="text" value="${heroTitleEffectColor}" class="flex-1 p-2 border border-gray-300 rounded text-sm" onchange="updateElement('${el.id}', {style: {imageEffectColor: this.value}})">
+                        </div>
+                      </div>
+                    ` : ''}
+
+                    ${heroTitleEffectType !== 'none' ? `
+                      <div>
+                        <label class="text-xs font-bold">${heroTitleEffectType === 'ripple' ? '波紋強度' : '光暈強度'}: ${heroTitleEffectStrength}</label>
+                        <input type="range" min="0" max="100" value="${heroTitleEffectStrength}" class="w-full" onchange="updateElement('${el.id}', {style: {imageEffectStrength: parseInt(this.value)}})">
+                      </div>
+                    ` : ''}
+
+                    <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
+                      <strong>提示：</strong>特效可在手機/桌機分別設定；水波紋在手機上建議降低強度以減少遮擋與耗效能。
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
             ` : ''}
             ${isDecoCircle ? `
               <div class="border-t pt-4 mt-4">
