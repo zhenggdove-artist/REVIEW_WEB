@@ -32,9 +32,16 @@
     /* 自適應內容的白色底框 */
     .media-container { display: inline-block; background: white; padding: 24px; max-width: 100%; }
     .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
+    /* 自訂動畫游標 */
+    .custom-cursor-enabled { cursor: none !important; }
+    .custom-cursor-enabled * { cursor: none !important; }
+    #custom-cursor { position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); display: none; }
+    #custom-cursor img { width: 100%; height: 100%; object-fit: contain; }
   </style>
 </head>
 <body>
+  <!-- 自訂動畫游標 -->
+  <div id="custom-cursor"><img src="" alt=""></div>
   <div id="app"></div>
 
   <script>
@@ -48,7 +55,7 @@
 
     // ============ 初始數據 ============
     const INITIAL_DATA = {
-      settings: { englishFont: 'GarmentDistrict' },
+      settings: { englishFont: 'GarmentDistrict', cursorSize: 48, cursorSpeed: 80, cursorEnabled: true },
       background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png', size: 'auto', posX: 50, posY: 50, repeat: 'repeat', opacity: 100 },
       decoration: {
         circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } },
@@ -502,6 +509,33 @@
                     <input type="range" min="0" max="100" value="${bg.opacity ?? 100}" class="flex-1" id="bg-opacity-slider" oninput="document.getElementById('bg-opacity-val').textContent=this.value+'%'">
                     <span id="bg-opacity-val" class="text-xs w-12">${bg.opacity ?? 100}%</span>
                     <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateBackground({opacity: parseInt(document.getElementById('bg-opacity-slider').value)})">套用</button>
+                  </div>
+                </div>
+              </div>
+              <div class="border-t pt-4 mt-4">
+                <h4 class="font-bold mb-3 text-sm">動畫滑鼠游標</h4>
+                <div class="space-y-3">
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="cursor-enabled" ${(siteData.settings?.cursorEnabled !== false) ? 'checked' : ''}>
+                    <label for="cursor-enabled" class="text-xs font-bold">啟用自訂游標</label>
+                    <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateCursorSettings({cursorEnabled: document.getElementById('cursor-enabled').checked})">套用</button>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">游標大小: ${siteData.settings?.cursorSize || 48}px</label>
+                    <div class="flex gap-2 items-center">
+                      <input type="number" id="cursor-size-input" value="${siteData.settings?.cursorSize || 48}" min="16" max="128" class="w-20 p-1 border border-gray-300 rounded text-sm">
+                      <span class="text-xs text-gray-400">px</span>
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateCursorSettings({cursorSize: parseInt(document.getElementById('cursor-size-input').value)||48})">套用</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">動畫速度: ${siteData.settings?.cursorSpeed || 80}ms</label>
+                    <div class="flex gap-2 items-center">
+                      <input type="range" id="cursor-speed-slider" min="30" max="200" value="${siteData.settings?.cursorSpeed || 80}" class="flex-1" oninput="document.getElementById('cursor-speed-val').textContent=this.value+'ms'">
+                      <span id="cursor-speed-val" class="text-xs w-12">${siteData.settings?.cursorSpeed || 80}ms</span>
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateCursorSettings({cursorSpeed: parseInt(document.getElementById('cursor-speed-slider').value)||80})">套用</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">數值越小動畫越快</p>
                   </div>
                 </div>
               </div>
@@ -1416,6 +1450,73 @@
 
     applyStyles();
     render();
+
+    // ============ 自訂動畫游標 ============
+    const CURSOR_FRAMES = [];
+    for (let i = 1; i <= 19; i++) {
+      CURSOR_FRAMES.push('./docs/assets/player/player' + i + '.PNG');
+    }
+    let cursorFrame = 0;
+    let cursorInterval = null;
+    const cursorEl = document.getElementById('custom-cursor');
+    const cursorImg = cursorEl.querySelector('img');
+
+    function initCursor() {
+      const settings = siteData.settings || {};
+      const enabled = settings.cursorEnabled !== false;
+      const size = settings.cursorSize || 48;
+      const speed = settings.cursorSpeed || 80;
+
+      if (enabled) {
+        document.body.classList.add('custom-cursor-enabled');
+        cursorEl.style.width = size + 'px';
+        cursorEl.style.height = size + 'px';
+        cursorEl.style.display = 'block';
+
+        // 預載圖片
+        CURSOR_FRAMES.forEach(src => {
+          const img = new Image();
+          img.src = src;
+        });
+
+        // 開始動畫
+        if (cursorInterval) clearInterval(cursorInterval);
+        cursorInterval = setInterval(() => {
+          cursorFrame = (cursorFrame + 1) % CURSOR_FRAMES.length;
+          cursorImg.src = CURSOR_FRAMES[cursorFrame];
+        }, speed);
+      } else {
+        document.body.classList.remove('custom-cursor-enabled');
+        cursorEl.style.display = 'none';
+        if (cursorInterval) clearInterval(cursorInterval);
+      }
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      if (siteData.settings?.cursorEnabled !== false) {
+        cursorEl.style.left = e.clientX + 'px';
+        cursorEl.style.top = e.clientY + 'px';
+      }
+    });
+
+    document.addEventListener('mouseenter', () => {
+      if (siteData.settings?.cursorEnabled !== false) {
+        cursorEl.style.display = 'block';
+      }
+    });
+
+    document.addEventListener('mouseleave', () => {
+      cursorEl.style.display = 'none';
+    });
+
+    // 更新游標設定
+    function updateCursorSettings(updates) {
+      siteData.settings = { ...siteData.settings, ...updates };
+      saveData();
+      initCursor();
+    }
+
+    initCursor();
   </script>
 </body>
 </html>
