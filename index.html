@@ -989,11 +989,10 @@
                   <div class="bg-gray-100 p-3 rounded mb-3">
                     <div class="text-xs font-bold mb-2">選取文字顏色</div>
                     <div class="flex gap-2 items-center">
-                      <input type="color" id="text-color-picker" value="#000000" class="w-12 h-10 cursor-pointer border-2 border-gray-300 rounded">
+                      <input type="color" id="text-color-picker" value="#000000" class="w-12 h-10 cursor-pointer border-2 border-gray-300 rounded" oninput="document.getElementById('color-preview').textContent=this.value">
                       <span id="color-preview" class="flex-1 text-sm">#000000</span>
                       <button class="px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600" onmousedown="event.preventDefault();applyFontColorCmd(document.getElementById('text-color-picker').value)">套用</button>
                     </div>
-                    <script>document.getElementById('text-color-picker')?.addEventListener('input', e => document.getElementById('color-preview').textContent = e.target.value);</script>
                   </div>
 
                   <!-- 編輯區 -->
