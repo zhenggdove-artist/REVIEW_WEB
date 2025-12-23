@@ -437,6 +437,108 @@
     let activeElementId = null;
     let savedSelection = null; // 保存選取範圍
 
+    // ============ 裝置模式（桌機/手機）============
+    const DEVICE_MODE_KEY = 'drawme_device_mode_v1'; // auto | desktop | mobile
+    const MOBILE_BREAKPOINT_PX = 768;
+    let deviceMode = localStorage.getItem(DEVICE_MODE_KEY) || 'auto';
+
+    function getViewportDevice() {
+      return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches ? 'mobile' : 'desktop';
+    }
+
+    function getActiveDevice() {
+      if (deviceMode === 'desktop' || deviceMode === 'mobile') return deviceMode;
+      return getViewportDevice();
+    }
+
+    function setDeviceMode(mode) {
+      deviceMode = mode;
+      localStorage.setItem(DEVICE_MODE_KEY, mode);
+      applyStyles();
+      render();
+      if (typeof initCursor === 'function') initCursor();
+    }
+
+    // 自動模式下，跨過斷點才重繪（避免 resize 時一直重繪）
+    let lastViewportDevice = getViewportDevice();
+    window.addEventListener('resize', () => {
+      if (deviceMode !== 'auto') return;
+      const next = getViewportDevice();
+      if (next !== lastViewportDevice) {
+        lastViewportDevice = next;
+        applyStyles();
+        render();
+        if (typeof initCursor === 'function') initCursor();
+      }
+    });
+
+    function getResponsiveObject(obj) {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (getActiveDevice() !== 'mobile') return obj;
+      if (!obj.mobile || typeof obj.mobile !== 'object') return obj;
+      return { ...obj, ...obj.mobile };
+    }
+
+    function getResponsiveElement(el) {
+      if (!el || typeof el !== 'object') return el;
+      if (getActiveDevice() !== 'mobile') return el;
+      if (!el.mobile || typeof el.mobile !== 'object') return el;
+      const merged = { ...el, ...el.mobile };
+      // 全域欄位不做裝置覆寫（避免手機調整影響內容本身）
+      ['id', 'type', 'content', 'imageUrl'].forEach(k => {
+        if (el[k] !== undefined) merged[k] = el[k];
+      });
+      merged.style = { ...(el.style || {}), ...(el.mobile.style || {}) };
+      return merged;
+    }
+
+    function renderDeviceModeControls() {
+      const resolved = getActiveDevice();
+      const resolvedLabel = resolved === 'mobile' ? '手機' : '桌機';
+      return `
+        <div class="px-4 py-3 border-b border-black/10">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-xs font-bold">編輯/預覽裝置：${resolvedLabel}${deviceMode === 'auto' ? '（自動）' : ''}</div>
+            <div class="text-[11px] text-gray-500">≤${MOBILE_BREAKPOINT_PX}px 為手機</div>
+          </div>
+          <div class="flex gap-2">
+            <button class="flex-1 py-2 rounded ${deviceMode === 'auto' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="setDeviceMode('auto')">自動</button>
+            <button class="flex-1 py-2 rounded ${deviceMode === 'desktop' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="setDeviceMode('desktop')">桌機</button>
+            <button class="flex-1 py-2 rounded ${deviceMode === 'mobile' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="setDeviceMode('mobile')">手機</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function clearElementMobileOverrides(id) {
+      const el = findElement(id);
+      if (el && el.mobile) {
+        delete el.mobile;
+        saveData();
+      }
+    }
+
+    function clearBoxStyleMobileOverrides(boxName) {
+      if (siteData.boxStyles && siteData.boxStyles[boxName] && siteData.boxStyles[boxName].mobile) {
+        delete siteData.boxStyles[boxName].mobile;
+        saveData();
+      }
+    }
+
+    function clearBackgroundMobileOverrides() {
+      if (siteData.background && siteData.background.mobile) {
+        delete siteData.background.mobile;
+        saveData();
+      }
+    }
+
+    function clearSettingsMobileOverrides() {
+      if (siteData.settings && siteData.settings.mobile) {
+        delete siteData.settings.mobile;
+        saveData();
+      }
+    }
+
     function saveData() {
       localStorage.setItem('drawme_data_v14', JSON.stringify(siteData));
       applyStyles();
@@ -530,8 +632,9 @@
     }
 
     function applyStyles() {
-      const bg = siteData.background || INITIAL_DATA.background;
-      const font = siteData.settings?.englishFont || 'GarmentDistrict';
+      const bg = getResponsiveObject(siteData.background || INITIAL_DATA.background);
+      const settings = getResponsiveObject(siteData.settings || INITIAL_DATA.settings);
+      const font = settings?.englishFont || 'GarmentDistrict';
       document.body.style.backgroundColor = bg.color;
       document.body.style.fontFamily = `'${font}', 'ChenYuluoyan', sans-serif`;
       // 更新背景圖層
@@ -567,26 +670,99 @@
     function updateElement(id, updates) {
       const el = findElement(id);
       if (el) {
-        Object.assign(el, updates);
-        if (updates.style) el.style = { ...el.style, ...updates.style };
+        const isMobileEdit = getActiveDevice() === 'mobile';
+        const globalKeys = new Set(['id', 'type', 'content', 'imageUrl']);
+
+        Object.entries(updates || {}).forEach(([key, val]) => {
+          if (key === 'style') return;
+          if (!isMobileEdit || globalKeys.has(key)) {
+            el[key] = val;
+          } else {
+            if (!el.mobile) el.mobile = {};
+            el.mobile[key] = val;
+          }
+        });
+
+        if (updates && updates.style) {
+          if (isMobileEdit) {
+            if (!el.mobile) el.mobile = {};
+            el.mobile.style = { ...(el.mobile.style || {}), ...updates.style };
+          } else {
+            el.style = { ...(el.style || {}), ...updates.style };
+          }
+        }
         saveData();
       }
     }
 
     function updateBackground(updates) {
-      siteData.background = { ...siteData.background, ...updates };
+      if (!siteData.background) {
+        siteData.background = JSON.parse(JSON.stringify(INITIAL_DATA.background || {}));
+      }
+      if (getActiveDevice() === 'mobile') {
+        if (!siteData.background.mobile) siteData.background.mobile = {};
+        siteData.background.mobile = { ...siteData.background.mobile, ...updates };
+      } else {
+        siteData.background = { ...siteData.background, ...updates };
+      }
       saveData();
     }
 
     function updateSettings(updates) {
-      siteData.settings = { ...siteData.settings, ...updates };
+      if (!siteData.settings) {
+        siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings || {}));
+      }
+      if (getActiveDevice() === 'mobile') {
+        if (!siteData.settings.mobile) siteData.settings.mobile = {};
+        siteData.settings.mobile = { ...siteData.settings.mobile, ...updates };
+      } else {
+        siteData.settings = { ...siteData.settings, ...updates };
+      }
       saveData();
     }
 
     function updateBoxStyle(boxName, updates) {
       if (!siteData.boxStyles) siteData.boxStyles = {};
-      siteData.boxStyles[boxName] = { ...siteData.boxStyles[boxName], ...updates };
+      if (!siteData.boxStyles[boxName]) {
+        siteData.boxStyles[boxName] = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles[boxName] || {}));
+      }
+      if (getActiveDevice() === 'mobile') {
+        if (!siteData.boxStyles[boxName].mobile) siteData.boxStyles[boxName].mobile = {};
+        siteData.boxStyles[boxName].mobile = { ...siteData.boxStyles[boxName].mobile, ...updates };
+      } else {
+        siteData.boxStyles[boxName] = { ...siteData.boxStyles[boxName], ...updates };
+      }
       saveData();
+    }
+
+    function getBoxStyle(boxName) {
+      const base =
+        (siteData.boxStyles && siteData.boxStyles[boxName])
+          ? siteData.boxStyles[boxName]
+          : (INITIAL_DATA.boxStyles ? INITIAL_DATA.boxStyles[boxName] : {});
+      return getResponsiveObject(base || {});
+    }
+
+    function updateLeftAnimation(updates) {
+      if (!siteData.decoration) siteData.decoration = {};
+      if (!siteData.decoration.leftAnimation) {
+        siteData.decoration.leftAnimation = JSON.parse(JSON.stringify(INITIAL_DATA.decoration?.leftAnimation || {}));
+      }
+      const target = siteData.decoration.leftAnimation;
+      if (getActiveDevice() === 'mobile') {
+        if (!target.mobile) target.mobile = {};
+        target.mobile = { ...target.mobile, ...updates };
+      } else {
+        Object.assign(target, updates);
+      }
+      saveData();
+    }
+
+    function clearLeftAnimationMobileOverrides() {
+      if (siteData.decoration?.leftAnimation?.mobile) {
+        delete siteData.decoration.leftAnimation.mobile;
+        saveData();
+      }
     }
 
     // ============ 輪播功能 ============
@@ -702,62 +878,66 @@
     // ============ 渲染函數 ============
     function renderMedia(el, extraClass = '') {
       if (!el) return '';
+      const viewEl = getResponsiveElement(el);
       const adminClass = isAdmin ? 'admin-highlight' : '';
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
-      const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
+      const rotation = viewEl.style?.rotation ? `transform: rotate(${viewEl.style.rotation}deg);` : '';
       const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
-      const youtubeId = getYouTubeId(el.content);
+      const youtubeId = getYouTubeId(viewEl.content);
       if (youtubeId) {
         return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>
           <iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>
         </div>`;
       }
-      if (el.content && (el.content.includes('.mp4') || el.content.includes('.webm'))) {
-        return `<video src="${el.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}></video>`;
+      if (viewEl.content && (viewEl.content.includes('.mp4') || viewEl.content.includes('.webm'))) {
+        return `<video src="${viewEl.content}" controls class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}></video>`;
       }
-      return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+      return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
     }
 
     function renderElement(el, extraClass = '') {
       if (!el) return '';
+      const viewEl = getResponsiveElement(el);
       const adminClass = isAdmin ? 'admin-highlight' : '';
       const activeClass = activeElementId === el.id ? 'ring-4 ring-pink-500' : '';
-      const rotation = el.style?.rotation ? `transform: rotate(${el.style.rotation}deg);` : '';
-      const color = el.style?.color ? `color: ${el.style.color};` : '';
+      const rotation = viewEl.style?.rotation ? `transform: rotate(${viewEl.style.rotation}deg);` : '';
+      const color = viewEl.style?.color ? `color: ${viewEl.style.color};` : '';
       const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
-      if (el.type === 'media') return renderMedia(el, extraClass);
-      if (el.type === 'image') {
-        return `<img src="${el.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
+      if (viewEl.type === 'media') return renderMedia(viewEl, extraClass);
+      if (viewEl.type === 'image') {
+        return `<img src="${viewEl.content}" alt="圖片" class="max-w-full h-auto rounded ${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>`;
       }
       // 支援圖片模式的標題
-      if (el.displayMode === 'image' && el.imageUrl) {
+      if (viewEl.displayMode === 'image' && viewEl.imageUrl) {
         let imgStyles = [];
-        if (el.imageWidth) imgStyles.push('width:' + el.imageWidth + 'px');
-        if (el.imageHeight) imgStyles.push('height:' + el.imageHeight + 'px');
-        if (!el.imageWidth && !el.imageHeight) imgStyles.push('max-height:12rem');
-        if (el.keepRatio) imgStyles.push('object-fit:contain');
+        if (viewEl.imageWidth) imgStyles.push('width:' + viewEl.imageWidth + 'px');
+        if (viewEl.imageHeight) imgStyles.push('height:' + viewEl.imageHeight + 'px');
+        if (!viewEl.imageWidth && !viewEl.imageHeight) imgStyles.push('max-height:12rem');
+        if (viewEl.keepRatio) imgStyles.push('object-fit:contain');
         const styleStr = imgStyles.join(';');
-        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + rotation + '" ' + onClick + '><img src="' + el.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
+        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + rotation + '" ' + onClick + '><img src="' + viewEl.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
       }
-      const fontSizeStyle = el.style?.fontSizePx ? `font-size:${el.style.fontSizePx}px;` : '';
-      const fontSizeClass = !el.style?.fontSizePx && el.style?.fontSize ? el.style.fontSize : '';
-      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color} ${fontSizeStyle}" ${onClick}>${el.content}</div>`;
+      const fontSizeStyle = viewEl.style?.fontSizePx ? `font-size:${viewEl.style.fontSizePx}px;` : '';
+      const fontSizeClass = !viewEl.style?.fontSizePx && viewEl.style?.fontSize ? viewEl.style.fontSize : '';
+      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color} ${fontSizeStyle}" ${onClick}>${viewEl.content}</div>`;
     }
 
     function renderSidebar() {
       if (!isAdmin) return '';
 
       if (activeElementId === 'background-settings') {
-        const bg = siteData.background || {};
-        const currentFont = siteData.settings?.englishFont || 'GarmentDistrict';
+        const bg = getResponsiveObject(siteData.background || {});
+        const settings = getResponsiveObject(siteData.settings || {});
+        const currentFont = settings?.englishFont || 'GarmentDistrict';
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">網站設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">英文字體</h4>
@@ -826,23 +1006,23 @@
                 <h4 class="font-bold mb-3 text-sm">動畫滑鼠游標</h4>
                 <div class="space-y-3">
                   <div class="flex items-center gap-2">
-                    <input type="checkbox" id="cursor-enabled" ${(siteData.settings?.cursorEnabled !== false) ? 'checked' : ''}>
+                    <input type="checkbox" id="cursor-enabled" ${(settings.cursorEnabled !== false) ? 'checked' : ''}>
                     <label for="cursor-enabled" class="text-xs font-bold">啟用自訂游標</label>
                     <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateCursorSettings({cursorEnabled: document.getElementById('cursor-enabled').checked})">套用</button>
                   </div>
                   <div>
-                    <label class="text-xs font-bold">游標大小: ${siteData.settings?.cursorSize || 48}px</label>
+                    <label class="text-xs font-bold">游標大小: ${settings.cursorSize || 48}px</label>
                     <div class="flex gap-2 items-center">
-                      <input type="number" id="cursor-size-input" value="${siteData.settings?.cursorSize || 48}" min="16" max="128" class="w-20 p-1 border border-gray-300 rounded text-sm">
+                      <input type="number" id="cursor-size-input" value="${settings.cursorSize || 48}" min="16" max="128" class="w-20 p-1 border border-gray-300 rounded text-sm">
                       <span class="text-xs text-gray-400">px</span>
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateCursorSettings({cursorSize: parseInt(document.getElementById('cursor-size-input').value)||48})">套用</button>
                     </div>
                   </div>
                   <div>
-                    <label class="text-xs font-bold">動畫速度: ${siteData.settings?.cursorSpeed || 80}ms</label>
+                    <label class="text-xs font-bold">動畫速度: ${settings.cursorSpeed || 80}ms</label>
                     <div class="flex gap-2 items-center">
-                      <input type="range" id="cursor-speed-slider" min="30" max="200" value="${siteData.settings?.cursorSpeed || 80}" class="flex-1" oninput="document.getElementById('cursor-speed-val').textContent=this.value+'ms'">
-                      <span id="cursor-speed-val" class="text-xs w-12">${siteData.settings?.cursorSpeed || 80}ms</span>
+                      <input type="range" id="cursor-speed-slider" min="30" max="200" value="${settings.cursorSpeed || 80}" class="flex-1" oninput="document.getElementById('cursor-speed-val').textContent=this.value+'ms'">
+                      <span id="cursor-speed-val" class="text-xs w-12">${settings.cursorSpeed || 80}ms</span>
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateCursorSettings({cursorSpeed: parseInt(document.getElementById('cursor-speed-slider').value)||80})">套用</button>
                     </div>
                     <p class="text-xs text-gray-400 mt-1">數值越小動畫越快</p>
@@ -867,13 +1047,14 @@
       // 輪播圖片管理
       if (activeElementId === 'carousel-settings') {
         const items = siteData.hero.mediaItems || [];
-        const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
+        const boxStyle = getBoxStyle('mediaBox');
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">輪播圖片管理</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">圖片框樣式</h4>
@@ -947,14 +1128,15 @@
 
       // 虛線框設定
       if (activeElementId === 'box-dashed') {
-        const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
-        const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
+        const db = getBoxStyle('dashedBorder');
+        const fs = getBoxStyle('footerBox');
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">底部區域設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">虛線框樣式</h4>
@@ -1018,13 +1200,14 @@
 
       // 宣言區塊框設定
       if (activeElementId === 'box-manifesto') {
-        const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
+        const ms = getBoxStyle('manifestoBox');
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">宣言區塊設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label class="text-xs">框線顏色</label>
@@ -1057,13 +1240,14 @@
 
       // 行動區塊框設定
       if (activeElementId === 'box-action') {
-        const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
+        const as = getBoxStyle('actionBox');
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">行動區塊設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label class="text-xs">框線顏色</label>
@@ -1096,7 +1280,7 @@
 
       // 索取徽章地點設定
       if (activeElementId === 'locations-settings') {
-        const ls = siteData.boxStyles?.locationsBox || INITIAL_DATA.boxStyles.locationsBox;
+        const ls = getBoxStyle('locationsBox');
         const locations = siteData.locations?.items || [];
         return `
           <div class="sidebar open">
@@ -1104,6 +1288,7 @@
               <h3 class="text-lg font-bold">索取徽章地點</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">區塊樣式</h4>
@@ -1156,7 +1341,7 @@
 
       // 贊助廠商/藝術家設定
       if (activeElementId === 'supporters-settings') {
-        const ss = siteData.boxStyles?.supportersBox || INITIAL_DATA.boxStyles.supportersBox;
+        const ss = getBoxStyle('supportersBox');
         const sponsors = siteData.supporters?.sponsors || [];
         const artists = siteData.supporters?.artists || [];
         return `
@@ -1165,6 +1350,7 @@
               <h3 class="text-lg font-bold">贊助商/藝術家</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">區塊樣式</h4>
@@ -1238,32 +1424,34 @@
 
       // 左側動畫設定
       if (activeElementId === 'left-animation') {
-        const leftAnim = siteData.decoration?.leftAnimation || {};
+        const leftAnimBase = siteData.decoration?.leftAnimation || {};
+        const leftAnim = getResponsiveObject(leftAnimBase);
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">左側動畫設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label class="block text-sm font-bold mb-2">動畫/圖片網址</label>
-                <input type="text" value="${leftAnim.content || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入 GIF、影片或圖片網址" onchange="siteData.decoration.leftAnimation.content = this.value; saveData();">
+                <input type="text" value="${leftAnim.content || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入 GIF、影片或圖片網址" onchange="updateLeftAnimation({content: this.value})">
                 <p class="text-xs text-gray-400 mt-1">支援 GIF、MP4、WebM 或圖片</p>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">寬度: ${leftAnim.width || 200}px</label>
-                <input type="range" min="100" max="400" value="${leftAnim.width || 200}" class="w-full" onchange="siteData.decoration.leftAnimation.width = parseInt(this.value); saveData();">
+                <input type="range" min="100" max="400" value="${leftAnim.width || 200}" class="w-full" onchange="updateLeftAnimation({width: parseInt(this.value)})">
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">高度: ${leftAnim.height || 300}px</label>
-                <input type="range" min="100" max="600" value="${leftAnim.height || 300}" class="w-full" onchange="siteData.decoration.leftAnimation.height = parseInt(this.value); saveData();">
+                <input type="range" min="100" max="600" value="${leftAnim.height || 300}" class="w-full" onchange="updateLeftAnimation({height: parseInt(this.value)})">
               </div>
               <div class="border-t pt-4 mt-4">
                 <h4 class="font-bold mb-3 text-sm">位置調整</h4>
                 <div>
                   <label class="block text-sm font-bold mb-2">水平位置 (X): ${leftAnim.posX ?? 30}px</label>
-                  <input type="range" min="-500" max="1500" value="${leftAnim.posX ?? 30}" class="w-full" onchange="siteData.decoration.leftAnimation.posX = parseInt(this.value); saveData();">
+                  <input type="range" min="-500" max="1500" value="${leftAnim.posX ?? 30}" class="w-full" onchange="updateLeftAnimation({posX: parseInt(this.value)})">
                   <div class="flex justify-between text-xs text-gray-400 mt-1">
                     <span>-500</span>
                     <span>0</span>
@@ -1273,7 +1461,7 @@
                 </div>
                 <div class="mt-4">
                   <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${leftAnim.posY ?? 50}%</label>
-                  <input type="range" min="0" max="100" value="${leftAnim.posY ?? 50}" class="w-full" onchange="siteData.decoration.leftAnimation.posY = parseInt(this.value); saveData();">
+                  <input type="range" min="0" max="100" value="${leftAnim.posY ?? 50}" class="w-full" onchange="updateLeftAnimation({posY: parseInt(this.value)})">
                   <div class="flex justify-between text-xs text-gray-400 mt-1">
                     <span>上 0%</span>
                     <span>中 50%</span>
@@ -1294,7 +1482,10 @@
                 <strong>提示：</strong>留空則不顯示左側區域。動畫區域會固定在網頁左側中央位置。
               </div>
               ${leftAnim.content ? `
-                <button onclick="siteData.decoration.leftAnimation.content = ''; saveData();" class="w-full py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 text-sm">清除動畫</button>
+                <button onclick="updateLeftAnimation({content: ''})" class="w-full py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 text-sm">清除動畫</button>
+              ` : ''}
+              ${(getActiveDevice() === 'mobile' && siteData.decoration?.leftAnimation?.mobile) ? `
+                <button onclick="clearLeftAnimationMobileOverrides()" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
               ` : ''}
             </div>
           </div>
@@ -1303,31 +1494,33 @@
 
       // Hashtags 編輯
       if (activeElementId === 'footer-hashtags') {
-        const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+        const hashtagsBase = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+        const hashtags = getResponsiveElement(hashtagsBase);
         return `
           <div class="sidebar open">
             <div class="p-4 border-b-2 border-black flex justify-between items-center">
               <h3 class="text-lg font-bold">Hashtags 設定</h3>
               <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
             </div>
+            ${renderDeviceModeControls()}
             <div class="p-4 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label class="block text-sm font-bold mb-2">Hashtags 內容</label>
                 <textarea id="hashtags-content" class="w-full p-2 border-2 border-black rounded text-sm h-24" placeholder="#DrawMeTaiwan #社會雕塑">${hashtags.content}</textarea>
-                <button class="mt-2 px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600 text-sm" onclick="siteData.footer.hashtags.content = document.getElementById('hashtags-content').value; saveData();">套用內容</button>
+                <button class="mt-2 px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600 text-sm" onclick="updateElement('footer-hashtags', {content: document.getElementById('hashtags-content').value})">套用內容</button>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">文字顏色</label>
                 <div class="flex gap-2 items-center">
                   <input type="color" id="hashtags-color" value="${hashtags.style?.color || '#000000'}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded">
-                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), color: document.getElementById('hashtags-color').value}; saveData();">套用顏色</button>
+                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateElement('footer-hashtags', {style: {color: document.getElementById('hashtags-color').value}})">套用顏色</button>
                 </div>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">透明度: ${hashtags.style?.opacity ?? 60}%</label>
                 <div class="flex gap-2 items-center">
                   <input type="range" id="hashtags-opacity" min="0" max="100" value="${hashtags.style?.opacity ?? 60}" class="flex-1">
-                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), opacity: parseInt(document.getElementById('hashtags-opacity').value)}; saveData();">套用</button>
+                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateElement('footer-hashtags', {style: {opacity: parseInt(document.getElementById('hashtags-opacity').value)}})">套用</button>
                 </div>
               </div>
               <div>
@@ -1338,8 +1531,11 @@
                   <option value="text-xl" ${(hashtags.style?.fontSize === 'text-xl' || !hashtags.style?.fontSize) ? 'selected' : ''}>大</option>
                   <option value="text-2xl" ${hashtags.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
                 </select>
-                <button class="mt-2 px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), fontSize: document.getElementById('hashtags-size').value}; saveData();">套用大小</button>
+                <button class="mt-2 px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="updateElement('footer-hashtags', {style: {fontSize: document.getElementById('hashtags-size').value}})">套用大小</button>
               </div>
+              ${(getActiveDevice() === 'mobile' && siteData.footer?.hashtags?.mobile) ? `
+                <button onclick="clearElementMobileOverrides('footer-hashtags')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
+              ` : ''}
             </div>
           </div>
         `;
@@ -1348,6 +1544,7 @@
       if (!activeElementId) return '';
       const el = findElement(activeElementId);
       if (!el) return '';
+      const viewEl = getResponsiveElement(el);
 
       const isMedia = el.type === 'media' || el.id === 'hero-media';
       const isImage = el.type === 'image';
@@ -1359,23 +1556,24 @@
             <h3 class="text-lg font-bold">編輯元素</h3>
             <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
           </div>
+          ${renderDeviceModeControls()}
           <div class="p-4 space-y-4 overflow-y-auto flex-1">
             ${isText ? `
               <!-- 顯示模式切換 -->
               <div class="border-b pb-4 mb-4">
                 <label class="block text-sm font-bold mb-2">顯示模式</label>
                 <div class="flex gap-2">
-                  <button class="flex-1 py-2 rounded ${el.displayMode !== 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'text'})">文字</button>
-                  <button class="flex-1 py-2 rounded ${el.displayMode === 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'image'})">圖片</button>
+                  <button class="flex-1 py-2 rounded ${viewEl.displayMode !== 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'text'})">文字</button>
+                  <button class="flex-1 py-2 rounded ${viewEl.displayMode === 'image' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="updateElement('${el.id}', {displayMode: 'image'})">圖片</button>
                 </div>
               </div>
 
-              ${el.displayMode === 'image' ? `
+              ${viewEl.displayMode === 'image' ? `
                 <!-- 圖片模式 -->
                 <div>
                   <label class="block text-sm font-bold mb-2">圖片網址</label>
                   <div class="flex gap-2">
-                    <input type="text" id="img-url-input" value="${el.imageUrl || ''}" class="flex-1 p-2 border-2 border-black rounded text-sm" placeholder="輸入手寫標題圖片網址">
+                    <input type="text" id="img-url-input" value="${viewEl.imageUrl || ''}" class="flex-1 p-2 border-2 border-black rounded text-sm" placeholder="輸入手寫標題圖片網址">
                     <button class="px-3 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600 text-sm" onclick="updateElement('${el.id}', {imageUrl: document.getElementById('img-url-input').value})">套用</button>
                   </div>
                 </div>
@@ -1384,28 +1582,28 @@
                   <div class="space-y-3">
                     <div class="flex gap-2 items-center">
                       <label class="text-xs w-12">寬度</label>
-                      <input type="number" id="img-width-input" value="${el.imageWidth || 0}" min="0" max="1200" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
+                      <input type="number" id="img-width-input" value="${viewEl.imageWidth || 0}" min="0" max="1200" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
                       <span class="text-xs text-gray-400">px</span>
                       <button class="px-3 py-1 bg-pink-500 text-white rounded text-xs font-bold hover:bg-pink-600" onclick="updateElement('${el.id}', {imageWidth: parseInt(document.getElementById('img-width-input').value)||0})">套用</button>
                     </div>
                     <div class="flex gap-2 items-center">
                       <label class="text-xs w-12">高度</label>
-                      <input type="number" id="img-height-input" value="${el.imageHeight || 0}" min="0" max="800" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
+                      <input type="number" id="img-height-input" value="${viewEl.imageHeight || 0}" min="0" max="800" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
                       <span class="text-xs text-gray-400">px</span>
                       <button class="px-3 py-1 bg-pink-500 text-white rounded text-xs font-bold hover:bg-pink-600" onclick="updateElement('${el.id}', {imageHeight: parseInt(document.getElementById('img-height-input').value)||0})">套用</button>
                     </div>
                     <div class="flex items-center gap-2 pt-2 border-t border-gray-300">
-                      <input type="checkbox" id="img-keep-ratio" ${el.keepRatio ? 'checked' : ''}>
+                      <input type="checkbox" id="img-keep-ratio" ${viewEl.keepRatio ? 'checked' : ''}>
                       <label for="img-keep-ratio" class="text-xs">等比例縮放</label>
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateElement('${el.id}', {keepRatio: document.getElementById('img-keep-ratio').checked})">套用</button>
                     </div>
                     <p class="text-xs text-gray-400">輸入 0 表示自動大小</p>
                   </div>
                 </div>
-                ${el.imageUrl ? `
+                ${viewEl.imageUrl ? `
                 <div class="mt-3">
                   <div class="text-sm text-gray-500 mb-1">預覽：</div>
-                  <img src="${el.imageUrl}" class="object-contain border-2 border-gray-300 rounded p-2 bg-white max-w-full" style="max-height: 150px;">
+                  <img src="${viewEl.imageUrl}" class="object-contain border-2 border-gray-300 rounded p-2 bg-white max-w-full" style="max-height: 150px;">
                 </div>
                 ` : ''}
                 <div class="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded text-xs">
@@ -1482,12 +1680,12 @@
                   <div class="space-y-3">
                     <div class="flex gap-2 items-center">
                       <label class="text-xs w-20">整體顏色</label>
-                      <input type="color" id="block-color-${el.id}" value="${el.style?.color || '#000000'}" class="w-10 h-8 cursor-pointer border border-gray-300 rounded">
+                      <input type="color" id="block-color-${el.id}" value="${viewEl.style?.color || '#000000'}" class="w-10 h-8 cursor-pointer border border-gray-300 rounded">
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {color: document.getElementById('block-color-${el.id}').value}})">套用顏色</button>
                     </div>
                     <div class="flex gap-2 items-center">
                       <label class="text-xs w-20">字體大小</label>
-                      <input type="number" id="block-size-${el.id}" value="${el.style?.fontSizePx || 16}" min="8" max="200" class="w-20 p-1 border border-gray-300 rounded text-sm">
+                      <input type="number" id="block-size-${el.id}" value="${viewEl.style?.fontSizePx || 16}" min="8" max="200" class="w-20 p-1 border border-gray-300 rounded text-sm">
                       <span class="text-xs text-gray-400">px</span>
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {fontSizePx: parseInt(document.getElementById('block-size-${el.id}').value)||16, fontSize:''}})">套用大小</button>
                     </div>
@@ -1515,9 +1713,12 @@
               <img src="${el.content}" class="w-full rounded border-2 border-black">
             `}
             <div>
-              <label class="block text-sm font-bold mb-2">旋轉角度: ${el.style?.rotation || 0}°</label>
-              <input type="range" min="-10" max="10" step="0.5" value="${el.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
+              <label class="block text-sm font-bold mb-2">旋轉角度: ${viewEl.style?.rotation || 0}°</label>
+              <input type="range" min="-10" max="10" step="0.5" value="${viewEl.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
             </div>
+            ${(getActiveDevice() === 'mobile' && el.mobile) ? `
+              <button onclick="clearElementMobileOverrides('${el.id}')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -1566,7 +1767,7 @@
       const currentItem = items[currentIndex];
       if (!currentItem) return '';
 
-      const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
+      const boxStyle = getBoxStyle('mediaBox');
       const borderStyle = `border: ${boxStyle.borderWidth}px solid ${boxStyle.borderColor};`;
       const bgStyle = 'background: ' + hexToRgba(boxStyle.bgColor || '#ffffff', boxStyle.bgOpacity ?? 100) + ';';
       const shadowStyle = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(boxStyle.shadowColor || '#000000', boxStyle.shadowOpacity ?? 80) + ';';
@@ -1645,11 +1846,11 @@
             <div class="text-center mb-24">
               ${renderElement(d.hero.title, 'mb-8')}
               ${renderElement(d.hero.subtitle, 'mb-16')}
-              ${renderCarousel()}
+            ${renderCarousel()}
             </div>
 
             ${(() => {
-              const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
+              const ms = getBoxStyle('manifestoBox');
               const msBg = hexToRgba(ms.bgColor || '#ffffff', ms.bgOpacity ?? 50);
               const msShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ms.shadowColor || '#000000', ms.shadowOpacity ?? 80) + ';';
               return `
@@ -1667,7 +1868,7 @@
               ${renderElement(d.actions.title, 'text-center mb-16')}
               <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
                 ${(() => {
-                  const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
+                  const as = getBoxStyle('actionBox');
                   const asBg = hexToRgba(as.bgColor || '#ffffff', as.bgOpacity ?? 100);
                   const asShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(as.shadowColor || '#000000', as.shadowOpacity ?? 80) + ';';
                   return d.actions.items.map((item, idx) => `
@@ -1683,7 +1884,7 @@
 
             <!-- 索取徽章地點 -->
             ${(() => {
-              const ls = siteData.boxStyles?.locationsBox || INITIAL_DATA.boxStyles.locationsBox;
+              const ls = getBoxStyle('locationsBox');
               const lsBg = hexToRgba(ls.bgColor || '#FFF8E7', ls.bgOpacity ?? 100);
               const lsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ls.shadowColor || '#000000', ls.shadowOpacity ?? 80) + ';';
               const locations = siteData.locations?.items || [];
@@ -1709,7 +1910,7 @@
 
             <!-- 贊助廠商 / 參與藝術家 -->
             ${(() => {
-              const ss = siteData.boxStyles?.supportersBox || INITIAL_DATA.boxStyles.supportersBox;
+              const ss = getBoxStyle('supportersBox');
               const ssBg = hexToRgba(ss.bgColor || '#E7F0FF', ss.bgOpacity ?? 100);
               const ssShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ss.shadowColor || '#000000', ss.shadowOpacity ?? 80) + ';';
               const sponsors = siteData.supporters?.sponsors || [];
@@ -1754,7 +1955,7 @@
 
             <!-- 圖檔下載 -->
             ${(() => {
-              const ds = siteData.boxStyles?.downloadsBox || INITIAL_DATA.boxStyles.downloadsBox;
+              const ds = getBoxStyle('downloadsBox');
               const dsBg = hexToRgba(ds.bgColor || '#F0FFF0', ds.bgOpacity ?? 100);
               const dsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ds.shadowColor || '#000000', ds.shadowOpacity ?? 80) + ';';
               const downloads = siteData.downloads?.items || [];
@@ -1784,13 +1985,11 @@
             })()}
 
             ${(() => {
-              const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
-              const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
+              const db = getBoxStyle('dashedBorder');
+              const fs = getBoxStyle('footerBox');
               const fsBg = hexToRgba(fs.bgColor || '#FF00A0', fs.bgOpacity ?? 100);
               const fsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(fs.shadowColor || '#000000', fs.shadowOpacity ?? 80) + ';';
               const igLink = siteData.instagramLink || '';
-              const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
-              const hashtagOpacity = (hashtags.style?.opacity ?? 60) / 100;
               return `
                 <div class="text-center pt-24 ${isAdmin ? 'admin-highlight' : ''}" style="border-top: ${db.width}px dashed ${db.color};" ${isAdmin ? 'onclick="selectElement(\'box-dashed\')"' : ''}>
                   <a href="${igLink}" target="_blank" rel="noopener noreferrer" class="content-box text-white inline-block cursor-pointer hover:scale-105 transition-transform"
@@ -1800,7 +1999,7 @@
               `;
             })()}
               ${(() => {
-                const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+                const hashtags = getResponsiveElement(siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags);
                 const hashtagOpacity = (hashtags.style?.opacity ?? 60) / 100;
                 return `
                   <div class="mt-16 flex justify-center ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'footer-hashtags' ? 'ring-4 ring-pink-500' : ''}"
@@ -1819,7 +2018,8 @@
 
           <!-- 左側動畫區域 -->
           ${(() => {
-            const leftAnim = siteData.decoration?.leftAnimation;
+            const leftAnimBase = siteData.decoration?.leftAnimation;
+            const leftAnim = getResponsiveObject(leftAnimBase);
             const hasContent = leftAnim?.content;
             if (!hasContent && !isAdmin) return '';
             const posX = leftAnim?.posX ?? 30;
@@ -1845,18 +2045,23 @@
             `;
           })()}
 
-          <div class="fixed top-20 right-20 z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
-            <div
-              class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
-              style="transform: rotate(${d.decoration?.circleImage?.style?.rotation || 12}deg);"
-              ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
-            >
-              ${d.decoration?.circleImage?.content ?
-                `<img src="${d.decoration.circleImage.content}" class="w-full h-full object-cover" alt="裝飾圖片">` :
-                `<div class="w-full h-full bg-gray-300"></div>`
-              }
-            </div>
-          </div>
+          ${(() => {
+            const circle = getResponsiveElement(d.decoration?.circleImage);
+            return `
+              <div class="fixed top-20 right-20 z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
+                <div
+                  class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
+                  style="transform: rotate(${circle?.style?.rotation || 12}deg);"
+                  ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
+                >
+                  ${circle?.content ?
+                    `<img src="${circle.content}" class="w-full h-full object-cover" alt="裝飾圖片">` :
+                    `<div class="w-full h-full bg-gray-300"></div>`
+                  }
+                </div>
+              </div>
+            `;
+          })()}
         </div>
       `;
     }
@@ -1906,8 +2111,12 @@
     const cursorEl = document.getElementById('custom-cursor');
     const cursorImg = cursorEl.querySelector('img');
 
+    function getCurrentSettings() {
+      return getResponsiveObject(siteData.settings || {});
+    }
+
     function initCursor() {
-      const settings = siteData.settings || {};
+      const settings = getCurrentSettings();
       const enabled = settings.cursorEnabled !== false;
       const size = settings.cursorSize || 48;
       const speed = settings.cursorSpeed || 80;
@@ -1938,14 +2147,14 @@
     }
 
     document.addEventListener('mousemove', (e) => {
-      if (siteData.settings?.cursorEnabled !== false) {
+      if (getCurrentSettings().cursorEnabled !== false) {
         cursorEl.style.left = e.clientX + 'px';
         cursorEl.style.top = e.clientY + 'px';
       }
     });
 
     document.addEventListener('mouseenter', () => {
-      if (siteData.settings?.cursorEnabled !== false) {
+      if (getCurrentSettings().cursorEnabled !== false) {
         cursorEl.style.display = 'block';
       }
     });
@@ -1956,8 +2165,7 @@
 
     // 更新游標設定
     function updateCursorSettings(updates) {
-      siteData.settings = { ...siteData.settings, ...updates };
-      saveData();
+      updateSettings(updates);
       initCursor();
     }
 
