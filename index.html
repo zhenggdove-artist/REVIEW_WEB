@@ -49,7 +49,7 @@
     // ============ 初始數據 ============
     const INITIAL_DATA = {
       settings: { englishFont: 'GarmentDistrict' },
-      background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png', size: 'auto', posX: 50, posY: 50, repeat: 'repeat' },
+      background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png', size: 'auto', posX: 50, posY: 50, repeat: 'repeat', opacity: 100 },
       decoration: {
         circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } },
         leftAnimation: { id: 'left-animation', content: '', width: 200, height: 300, posX: 30, posY: 50 }
@@ -216,12 +216,25 @@
       const bg = siteData.background || INITIAL_DATA.background;
       const font = siteData.settings?.englishFont || 'GarmentDistrict';
       document.body.style.backgroundColor = bg.color;
-      document.body.style.backgroundImage = bg.image ? `url('${bg.image}')` : 'none';
-      document.body.style.backgroundSize = bg.size || 'auto';
-      document.body.style.backgroundPosition = `${bg.posX ?? 50}% ${bg.posY ?? 50}%`;
-      document.body.style.backgroundRepeat = bg.repeat || 'repeat';
-      document.body.style.backgroundAttachment = bg.fixed ? 'fixed' : 'scroll';
       document.body.style.fontFamily = `'${font}', 'ChenYuluoyan', sans-serif`;
+      // 更新背景圖層
+      let bgLayer = document.getElementById('bg-layer');
+      if (!bgLayer) {
+        bgLayer = document.createElement('div');
+        bgLayer.id = 'bg-layer';
+        bgLayer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;pointer-events:none;';
+        document.body.prepend(bgLayer);
+      }
+      if (bg.image) {
+        bgLayer.style.backgroundImage = `url('${bg.image}')`;
+        bgLayer.style.backgroundSize = bg.size || 'auto';
+        bgLayer.style.backgroundPosition = `${bg.posX ?? 50}% ${bg.posY ?? 50}%`;
+        bgLayer.style.backgroundRepeat = bg.repeat || 'repeat';
+        bgLayer.style.backgroundAttachment = bg.fixed ? 'fixed' : 'scroll';
+        bgLayer.style.opacity = (bg.opacity ?? 100) / 100;
+      } else {
+        bgLayer.style.backgroundImage = 'none';
+      }
     }
 
     function findElement(id, obj = siteData) {
@@ -403,14 +416,17 @@
       }
       // 支援圖片模式的標題
       if (el.displayMode === 'image' && el.imageUrl) {
-        const imgWidth = el.imageWidth ? `width: ${el.imageWidth}px;` : '';
-        const imgHeight = el.imageHeight ? `height: ${el.imageHeight}px;` : '';
-        const imgStyle = imgWidth || imgHeight ? `style="${imgWidth} ${imgHeight} object-contain;"` : 'class="max-h-32 md:max-h-48 object-contain"';
-        return `<div class="${adminClass} ${activeClass} ${extraClass}" style="${rotation}" ${onClick}>
-          <img src="${el.imageUrl}" alt="${el.content}" class="mx-auto" ${imgWidth || imgHeight ? `style="${imgWidth} ${imgHeight} object-contain;"` : 'style="max-height: 12rem; object-fit: contain;"'}>
-        </div>`;
+        let imgStyles = [];
+        if (el.imageWidth) imgStyles.push('width:' + el.imageWidth + 'px');
+        if (el.imageHeight) imgStyles.push('height:' + el.imageHeight + 'px');
+        if (!el.imageWidth && !el.imageHeight) imgStyles.push('max-height:12rem');
+        if (el.keepRatio) imgStyles.push('object-fit:contain');
+        const styleStr = imgStyles.join(';');
+        return '<div class="' + adminClass + ' ' + activeClass + ' ' + extraClass + '" style="' + rotation + '" ' + onClick + '><img src="' + el.imageUrl + '" alt="標題圖片" class="mx-auto" style="' + styleStr + '"></div>';
       }
-      return `<div class="${el.style?.fontSize || ''} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color}" ${onClick}>${el.content}</div>`;
+      const fontSizeStyle = el.style?.fontSizePx ? `font-size:${el.style.fontSizePx}px;` : '';
+      const fontSizeClass = !el.style?.fontSizePx && el.style?.fontSize ? el.style.fontSize : '';
+      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${rotation} ${color} ${fontSizeStyle}" ${onClick}>${el.content}</div>`;
     }
 
     function renderSidebar() {
@@ -476,9 +492,17 @@
                     <option value="repeat-y" ${bg.repeat === 'repeat-y' ? 'selected' : ''}>垂直重複</option>
                   </select>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 mb-3">
                   <input type="checkbox" id="bg-fixed" ${bg.fixed ? 'checked' : ''} onchange="updateBackground({fixed: this.checked})">
                   <label for="bg-fixed" class="text-xs font-bold">固定背景 (滾動時不動)</label>
+                </div>
+                <div>
+                  <label class="text-xs font-bold">背景透明度: ${bg.opacity ?? 100}%</label>
+                  <div class="flex gap-2 items-center">
+                    <input type="range" min="0" max="100" value="${bg.opacity ?? 100}" class="flex-1" id="bg-opacity-slider" oninput="document.getElementById('bg-opacity-val').textContent=this.value+'%'">
+                    <span id="bg-opacity-val" class="text-xs w-12">${bg.opacity ?? 100}%</span>
+                    <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600" onclick="updateBackground({opacity: parseInt(document.getElementById('bg-opacity-slider').value)})">套用</button>
+                  </div>
                 </div>
               </div>
               <div class="border-t pt-4 mt-4">
@@ -915,26 +939,39 @@
                 <!-- 圖片模式 -->
                 <div>
                   <label class="block text-sm font-bold mb-2">圖片網址</label>
-                  <input type="text" value="${el.imageUrl || ''}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="輸入手寫標題圖片網址" onchange="updateElement('${el.id}', {imageUrl: this.value})">
-                  <p class="text-xs text-gray-400 mt-1">可上傳手寫文字圖片來替代文字標題</p>
-                </div>
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="block text-xs font-bold mb-1">寬度: ${el.imageWidth || 0}px</label>
-                    <input type="range" min="0" max="800" value="${el.imageWidth || 0}" class="w-full" onchange="updateElement('${el.id}', {imageWidth: parseInt(this.value)})">
-                    <p class="text-xs text-gray-400">0 = 自動</p>
+                  <div class="flex gap-2">
+                    <input type="text" id="img-url-input" value="${el.imageUrl || ''}" class="flex-1 p-2 border-2 border-black rounded text-sm" placeholder="輸入手寫標題圖片網址">
+                    <button class="px-3 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600 text-sm" onclick="updateElement('${el.id}', {imageUrl: document.getElementById('img-url-input').value})">套用</button>
                   </div>
-                  <div>
-                    <label class="block text-xs font-bold mb-1">高度: ${el.imageHeight || 0}px</label>
-                    <input type="range" min="0" max="400" value="${el.imageHeight || 0}" class="w-full" onchange="updateElement('${el.id}', {imageHeight: parseInt(this.value)})">
-                    <p class="text-xs text-gray-400">0 = 自動</p>
+                </div>
+                <div class="mt-4 bg-gray-100 p-3 rounded">
+                  <div class="text-xs font-bold mb-3">圖片尺寸</div>
+                  <div class="space-y-3">
+                    <div class="flex gap-2 items-center">
+                      <label class="text-xs w-12">寬度</label>
+                      <input type="number" id="img-width-input" value="${el.imageWidth || 0}" min="0" max="1200" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
+                      <span class="text-xs text-gray-400">px</span>
+                      <button class="px-3 py-1 bg-pink-500 text-white rounded text-xs font-bold hover:bg-pink-600" onclick="updateElement('${el.id}', {imageWidth: parseInt(document.getElementById('img-width-input').value)||0})">套用</button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                      <label class="text-xs w-12">高度</label>
+                      <input type="number" id="img-height-input" value="${el.imageHeight || 0}" min="0" max="800" class="flex-1 p-2 border border-gray-300 rounded text-sm" placeholder="0=自動">
+                      <span class="text-xs text-gray-400">px</span>
+                      <button class="px-3 py-1 bg-pink-500 text-white rounded text-xs font-bold hover:bg-pink-600" onclick="updateElement('${el.id}', {imageHeight: parseInt(document.getElementById('img-height-input').value)||0})">套用</button>
+                    </div>
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-300">
+                      <input type="checkbox" id="img-keep-ratio" ${el.keepRatio ? 'checked' : ''}>
+                      <label for="img-keep-ratio" class="text-xs">等比例縮放</label>
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateElement('${el.id}', {keepRatio: document.getElementById('img-keep-ratio').checked})">套用</button>
+                    </div>
+                    <p class="text-xs text-gray-400">輸入 0 表示自動大小</p>
                   </div>
                 </div>
                 ${el.imageUrl ? `
-                  <div class="mt-3">
-                    <div class="text-sm text-gray-500 mb-1">預覽：</div>
-                    <img src="${el.imageUrl}" class="object-contain border-2 border-gray-300 rounded p-2 bg-white" style="${el.imageWidth ? 'width:' + el.imageWidth + 'px;' : 'max-height: 8rem;'} ${el.imageHeight ? 'height:' + el.imageHeight + 'px;' : ''}">
-                  </div>
+                <div class="mt-3">
+                  <div class="text-sm text-gray-500 mb-1">預覽：</div>
+                  <img src="${el.imageUrl}" class="object-contain border-2 border-gray-300 rounded p-2 bg-white max-w-full" style="max-height: 150px;">
+                </div>
                 ` : ''}
                 <div class="mt-4 p-3 bg-yellow-50 border border-yellow-300 rounded text-xs">
                   <strong>提示：</strong>文字內容仍會保留，切換回文字模式時會顯示。
@@ -1014,17 +1051,12 @@
                       <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {color: document.getElementById('block-color-${el.id}').value}})">套用顏色</button>
                     </div>
                     <div class="flex gap-2 items-center">
-                      <label class="text-xs w-20">整體大小</label>
-                      <select id="block-size-${el.id}" class="flex-1 p-1 border border-gray-300 rounded text-sm">
-                        <option value="text-sm" ${el.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
-                        <option value="text-lg" ${el.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
-                        <option value="text-xl" ${el.style?.fontSize === 'text-xl' ? 'selected' : ''}>大</option>
-                        <option value="text-2xl" ${el.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
-                        <option value="text-4xl" ${el.style?.fontSize === 'text-4xl' ? 'selected' : ''}>超大</option>
-                        <option value="text-7xl" ${el.style?.fontSize === 'text-7xl' ? 'selected' : ''}>巨大</option>
-                      </select>
-                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {fontSize: document.getElementById('block-size-${el.id}').value}})">套用大小</button>
+                      <label class="text-xs w-20">字體大小</label>
+                      <input type="number" id="block-size-${el.id}" value="${el.style?.fontSizePx || 16}" min="8" max="200" class="w-20 p-1 border border-gray-300 rounded text-sm">
+                      <span class="text-xs text-gray-400">px</span>
+                      <button class="px-3 py-1 bg-blue-500 text-white rounded text-sm font-bold hover:bg-blue-600" onclick="updateElement('${el.id}', {style: {fontSizePx: parseInt(document.getElementById('block-size-${el.id}').value)||16, fontSize:''}})">套用大小</button>
                     </div>
+                    <p class="text-xs text-gray-400">常用大小: 14小、16正常、20中、24大、32特大、48超大、72巨大</p>
                   </div>
                 </div>
               `}
