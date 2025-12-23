@@ -1357,6 +1357,9 @@
     let carouselFadeTimer = null;
     let carouselIsAnimating = false;
     const carouselPreloadedUrls = new Set();
+    const carouselReservedSizes = new Map(); // key -> { width, stageHeight }
+    let carouselReserveInFlight = null;
+    let carouselReserveInFlightKey = null;
 
     function getCarouselItems() {
       const items = siteData?.hero?.mediaItems;
@@ -1385,6 +1388,14 @@
 
     function getCarouselSlotEl() {
       return document.getElementById('hero-carousel-slot');
+    }
+
+    function getCarouselReserveKey() {
+      const device = getActiveDevice();
+      const boxStyle = getBoxStyle('mediaBox');
+      const maxWidth = boxStyle.maxWidth || 0;
+      const maxHeight = boxStyle.maxHeight || 0;
+      return `${device}|${maxWidth}|${maxHeight}`;
     }
 
     function getCarouselContainerEl() {
@@ -1486,6 +1497,88 @@
       return { width, stageHeight };
     }
 
+    function applyCarouselReservedSize(reserved) {
+      const container = getCarouselContainerEl();
+      const stage = getCarouselStageEl();
+      if (!container || !stage || !reserved) return;
+
+      const width = reserved.width;
+      const stageHeight = reserved.stageHeight;
+
+      if (Number.isFinite(width) && width > 0) container.style.width = `${Math.round(width)}px`;
+      else container.style.width = '';
+
+      if (Number.isFinite(stageHeight) && stageHeight > 0) stage.style.height = `${Math.round(stageHeight)}px`;
+      else stage.style.height = '';
+    }
+
+    async function ensureCarouselReservedSize() {
+      if (isAdmin) return null;
+      const items = getCarouselItems();
+      if (items.length <= 1) return null;
+
+      const key = getCarouselReserveKey();
+      const existing = carouselReservedSizes.get(key);
+      if (existing) {
+        applyCarouselReservedSize(existing);
+        return existing;
+      }
+
+      if (carouselReserveInFlight && carouselReserveInFlightKey === key) return carouselReserveInFlight;
+
+      carouselReserveInFlightKey = key;
+      const task = (async () => {
+        let maxWidth = 0;
+        let maxStageHeight = 0;
+
+        try {
+          for (const itemBase of items) {
+            const spec = getCarouselMediaSpec(itemBase);
+            const size = await measureCarouselSpecSize(spec);
+            if (!size) continue;
+            if (Number.isFinite(size.width) && size.width > maxWidth) maxWidth = size.width;
+            if (Number.isFinite(size.stageHeight) && size.stageHeight > maxStageHeight) maxStageHeight = size.stageHeight;
+          }
+        } catch {
+          // ignore, fallback below
+        }
+
+        const container = getCarouselContainerEl();
+        const stage = getCarouselStageEl();
+        if (container && (!Number.isFinite(maxWidth) || maxWidth <= 0)) maxWidth = container.offsetWidth || 0;
+        if (stage && (!Number.isFinite(maxStageHeight) || maxStageHeight <= 0)) maxStageHeight = stage.getBoundingClientRect().height || 0;
+
+        const boxStyle = getBoxStyle('mediaBox');
+        const maxHeightLimit = parseFloat(boxStyle.maxHeight || 0);
+        if (Number.isFinite(maxHeightLimit) && maxHeightLimit > 0) {
+          maxStageHeight = Math.min(maxStageHeight || maxHeightLimit, maxHeightLimit);
+        }
+
+        const reserved = {
+          width: Number.isFinite(maxWidth) ? Math.round(maxWidth) : 0,
+          stageHeight: Number.isFinite(maxStageHeight) ? Math.round(maxStageHeight) : 0
+        };
+
+        if (!Number.isFinite(reserved.stageHeight) || reserved.stageHeight <= 0) {
+          if (Number.isFinite(maxHeightLimit) && maxHeightLimit > 0) reserved.stageHeight = Math.round(maxHeightLimit);
+          else reserved.stageHeight = getActiveDevice() === 'mobile' ? 320 : 450;
+        }
+
+        carouselReservedSizes.set(key, reserved);
+        applyCarouselReservedSize(reserved);
+        return reserved;
+      })();
+
+      carouselReserveInFlight = task;
+      task.finally(() => {
+        if (carouselReserveInFlight === task) {
+          carouselReserveInFlight = null;
+        }
+      });
+
+      return task;
+    }
+
     function renderCarouselSlot() {
       const slot = getCarouselSlotEl();
       if (!slot) {
@@ -1510,6 +1603,17 @@
       const items = getCarouselItems();
       if (items.length <= 1) return;
 
+      const reserveKey = getCarouselReserveKey();
+      const reserved = carouselReservedSizes.get(reserveKey);
+      if (!reserved || !Number.isFinite(reserved.stageHeight) || reserved.stageHeight <= 0) {
+        ensureCarouselReservedSize();
+        carouselAutoTimer = setTimeout(() => {
+          carouselAutoTimer = null;
+          scheduleCarouselAuto();
+        }, 200);
+        return;
+      }
+
       carouselAutoTimer = setTimeout(() => {
         carouselAutoTimer = null;
         if (isAdmin) return;
@@ -1523,6 +1627,7 @@
 
     function syncCarouselUI() {
       preloadCarouselImages();
+      ensureCarouselReservedSize();
       scheduleCarouselAuto();
     }
 
@@ -1564,22 +1669,23 @@
           return;
         }
 
-        container.style.width = '';
+        const reserveKey = getCarouselReserveKey();
+        const reserved = carouselReservedSizes.get(reserveKey);
+        if (reserved && Number.isFinite(reserved.stageHeight) && reserved.stageHeight > 0) {
+          applyCarouselReservedSize(reserved);
+        } else {
+          // 先鎖定目前尺寸，避免切換時推擠下方內容；再背景計算最大預留空間
+          const currentWidth = container.offsetWidth || 0;
+          const currentHeight = stage.getBoundingClientRect().height || 0;
+          if (Number.isFinite(currentWidth) && currentWidth > 0) container.style.width = `${Math.round(currentWidth)}px`;
+          if (Number.isFinite(currentHeight) && currentHeight > 0) stage.style.height = `${Math.round(currentHeight)}px`;
+          ensureCarouselReservedSize();
+        }
 
         stage.classList.remove('carousel-animating');
-        stage.style.height = '';
         stage.querySelectorAll('.carousel-layer-next').forEach(el => el.remove());
 
-        const currentSpec = getCarouselMediaSpec(items[currentIndex]);
-        await waitForCarouselLayerReady(currentLayer, currentSpec, 2000);
-
-        const currentWidth = Math.max(1, container.offsetWidth || 1);
-        const currentStageHeight = Math.max(1, stage.getBoundingClientRect().height || currentLayer.getBoundingClientRect().height || 1);
-
         const nextSpec = getCarouselMediaSpec(items[targetIndex]);
-        const measured = await measureCarouselSpecSize(nextSpec);
-        const targetWidth = Math.max(1, (measured && measured.width) || currentWidth);
-        const targetStageHeight = Math.max(1, (measured && measured.stageHeight) || currentStageHeight);
         const nextLayer = document.createElement('div');
         nextLayer.className = 'carousel-layer carousel-layer-next';
         nextLayer.innerHTML = nextSpec.html;
@@ -1587,21 +1693,9 @@
 
         await waitForCarouselLayerReady(nextLayer, nextSpec, 2000);
 
-        const nextHeightRaw = nextLayer.getBoundingClientRect().height;
-        let nextStageHeight = targetStageHeight;
-        if (!Number.isFinite(nextStageHeight) || nextStageHeight <= 0) {
-          nextStageHeight = Math.max(1, nextHeightRaw || currentStageHeight);
-        }
-
-        container.style.width = `${Math.round(currentWidth)}px`;
-        stage.style.height = `${Math.round(currentStageHeight)}px`;
-        container.getBoundingClientRect();
         stage.getBoundingClientRect();
-
         requestAnimationFrame(() => {
           stage.classList.add('carousel-animating');
-          container.style.width = `${Math.round(targetWidth)}px`;
-          stage.style.height = `${Math.round(nextStageHeight)}px`;
         });
 
         if (carouselFadeTimer) clearTimeout(carouselFadeTimer);
