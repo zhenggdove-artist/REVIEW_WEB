@@ -37,12 +37,76 @@
     .custom-cursor-enabled * { cursor: none !important; }
     #custom-cursor { position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%); display: none; }
     #custom-cursor img { width: 100%; height: 100%; object-fit: contain; }
+
+    /* 手機預覽視窗（後台用） */
+    #mobile-preview-overlay {
+      --preview-scale: 0.85;
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 2600;
+      display: none;
+    }
+    #mobile-preview-overlay .mobile-preview-panel {
+      width: 390px;
+      height: 844px;
+      background: #fff;
+      overflow: hidden;
+      border: 3px solid #000;
+      border-radius: 28px;
+      box-shadow: 10px 10px 0px 0px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      transform: scale(var(--preview-scale));
+      transform-origin: bottom left;
+    }
+    #mobile-preview-overlay .mobile-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 2px solid #000;
+      background: #fff;
+    }
+    #mobile-preview-overlay .mobile-preview-title {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      user-select: none;
+    }
+    #mobile-preview-overlay .mobile-preview-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #333;
+    }
+    #mobile-preview-overlay .mobile-preview-tools input[type="range"] { width: 120px; }
+    #mobile-preview-overlay .mobile-preview-close {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #000;
+      background: #fff;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 24px;
+      padding: 0;
+    }
+    #mobile-preview-overlay .mobile-preview-iframe {
+      border: 0;
+      width: 390px;
+      flex: 1;
+      background: #fff;
+    }
   </style>
 </head>
 <body>
   <!-- 自訂動畫游標 -->
   <div id="custom-cursor"><img src="" alt=""></div>
   <div id="app"></div>
+  <div id="mobile-preview-overlay"></div>
 
   <script>
     // ============ 可用字體列表 ============
@@ -433,6 +497,8 @@
     }
     if (!siteData.hero.mediaItems) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
     if (siteData.hero.currentMediaIndex === undefined) siteData.hero.currentMediaIndex = 0;
+    const IS_PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+
     let isAdmin = false;
     let activeElementId = null;
     let savedSelection = null; // 保存選取範圍
@@ -441,6 +507,11 @@
     const DEVICE_MODE_KEY = 'drawme_device_mode_v1'; // auto | desktop | mobile
     const MOBILE_BREAKPOINT_PX = 768;
     let deviceMode = localStorage.getItem(DEVICE_MODE_KEY) || 'auto';
+    const MOBILE_PREVIEW_ENABLED_KEY = 'drawme_mobile_preview_enabled_v1';
+    const MOBILE_PREVIEW_SCALE_KEY = 'drawme_mobile_preview_scale_v1';
+    let mobilePreviewEnabled = (localStorage.getItem(MOBILE_PREVIEW_ENABLED_KEY) ?? '1') !== '0';
+    let mobilePreviewScale = parseFloat(localStorage.getItem(MOBILE_PREVIEW_SCALE_KEY) || '0.85');
+    if (!Number.isFinite(mobilePreviewScale) || mobilePreviewScale < 0.5 || mobilePreviewScale > 1) mobilePreviewScale = 0.85;
 
     function getViewportDevice() {
       return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches ? 'mobile' : 'desktop';
@@ -454,6 +525,10 @@
     function setDeviceMode(mode) {
       deviceMode = mode;
       localStorage.setItem(DEVICE_MODE_KEY, mode);
+      if (mode === 'mobile') {
+        mobilePreviewEnabled = true;
+        localStorage.setItem(MOBILE_PREVIEW_ENABLED_KEY, '1');
+      }
       applyStyles();
       render();
       if (typeof initCursor === 'function') initCursor();
@@ -469,6 +544,49 @@
         applyStyles();
         render();
         if (typeof initCursor === 'function') initCursor();
+      }
+    });
+
+    window.addEventListener('storage', (e) => {
+      if (!e.key) return;
+
+      if (e.key === 'drawme_data_v14') {
+        if (!e.newValue) {
+          siteData = JSON.parse(JSON.stringify(INITIAL_DATA));
+        } else {
+          try {
+            siteData = JSON.parse(e.newValue);
+          } catch {
+            return;
+          }
+        }
+        applyStyles();
+        render();
+        if (typeof initCursor === 'function') initCursor();
+        return;
+      }
+
+      if (e.key === DEVICE_MODE_KEY) {
+        deviceMode = e.newValue || 'auto';
+        applyStyles();
+        render();
+        if (typeof initCursor === 'function') initCursor();
+        return;
+      }
+
+      if (e.key === MOBILE_PREVIEW_ENABLED_KEY) {
+        mobilePreviewEnabled = (e.newValue ?? '1') !== '0';
+        updateMobilePreviewOverlay();
+        return;
+      }
+
+      if (e.key === MOBILE_PREVIEW_SCALE_KEY) {
+        const next = parseFloat(e.newValue || '');
+        if (Number.isFinite(next)) {
+          mobilePreviewScale = Math.max(0.5, Math.min(1, next));
+          const root = document.getElementById('mobile-preview-overlay');
+          if (root) root.style.setProperty('--preview-scale', String(mobilePreviewScale));
+        }
       }
     });
 
@@ -506,6 +624,14 @@
             <button class="flex-1 py-2 rounded ${deviceMode === 'desktop' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="setDeviceMode('desktop')">桌機</button>
             <button class="flex-1 py-2 rounded ${deviceMode === 'mobile' ? 'bg-black text-white' : 'bg-gray-200'}" onclick="setDeviceMode('mobile')">手機</button>
           </div>
+          ${deviceMode === 'mobile' ? `
+            <div class="mt-2 flex gap-2">
+              <button class="flex-1 py-2 rounded ${mobilePreviewEnabled ? 'bg-blue-500 text-white' : 'bg-gray-200'}" onclick="setMobilePreviewEnabled(${mobilePreviewEnabled ? 'false' : 'true'})">
+                ${mobilePreviewEnabled ? '關閉手機預覽' : '開啟手機預覽'}
+              </button>
+            </div>
+            <div class="mt-1 text-[11px] text-gray-500">手機預覽以 390px 寬度模擬（不影響桌機畫面）</div>
+          ` : ''}
         </div>
       `;
     }
@@ -539,8 +665,87 @@
       }
     }
 
+    // ============ 手機預覽（iframe 模擬手機寬度）============
+    function setMobilePreviewEnabled(enabled) {
+      mobilePreviewEnabled = !!enabled;
+      localStorage.setItem(MOBILE_PREVIEW_ENABLED_KEY, mobilePreviewEnabled ? '1' : '0');
+      render();
+    }
+
+    function setMobilePreviewScale(scale) {
+      const next = Math.max(0.5, Math.min(1, parseFloat(scale) || 0.85));
+      mobilePreviewScale = next;
+      localStorage.setItem(MOBILE_PREVIEW_SCALE_KEY, String(next));
+      const root = document.getElementById('mobile-preview-overlay');
+      if (root) root.style.setProperty('--preview-scale', String(next));
+    }
+
+    function getMobilePreviewUrl() {
+      const url = new URL(location.href);
+      url.searchParams.set('preview', '1');
+      return url.toString();
+    }
+
+    function ensureMobilePreviewOverlay() {
+      if (IS_PREVIEW) return null;
+      let root = document.getElementById('mobile-preview-overlay');
+      if (!root) {
+        root = document.createElement('div');
+        root.id = 'mobile-preview-overlay';
+        document.body.appendChild(root);
+      }
+      if (root.dataset.inited === '1') return root;
+      root.dataset.inited = '1';
+      root.style.setProperty('--preview-scale', String(mobilePreviewScale));
+
+      const panel = document.createElement('div');
+      panel.className = 'mobile-preview-panel';
+
+      const header = document.createElement('div');
+      header.className = 'mobile-preview-header';
+      header.innerHTML = `
+        <div class="mobile-preview-title">手機預覽</div>
+        <div class="mobile-preview-tools">
+          <span>縮放</span>
+          <input type="range" min="0.5" max="1" step="0.05" value="${mobilePreviewScale}">
+          <button type="button" class="mobile-preview-close" title="關閉" aria-label="關閉">×</button>
+        </div>
+      `;
+
+      const iframe = document.createElement('iframe');
+      iframe.className = 'mobile-preview-iframe';
+      iframe.title = '手機預覽';
+      iframe.loading = 'lazy';
+      iframe.src = getMobilePreviewUrl();
+
+      panel.appendChild(header);
+      panel.appendChild(iframe);
+      root.appendChild(panel);
+
+      const range = header.querySelector('input[type="range"]');
+      range?.addEventListener('input', () => setMobilePreviewScale(range.value));
+      const closeBtn = header.querySelector('.mobile-preview-close');
+      closeBtn?.addEventListener('click', () => setMobilePreviewEnabled(false));
+
+      return root;
+    }
+
+    function updateMobilePreviewOverlay() {
+      if (IS_PREVIEW) return;
+      const root = document.getElementById('mobile-preview-overlay');
+      const shouldShow = isAdmin && deviceMode === 'mobile' && mobilePreviewEnabled;
+      if (!shouldShow) {
+        if (root) root.style.display = 'none';
+        return;
+      }
+      const overlay = ensureMobilePreviewOverlay();
+      if (!overlay) return;
+      overlay.style.setProperty('--preview-scale', String(mobilePreviewScale));
+      overlay.style.display = 'block';
+    }
+
     function saveData() {
-      localStorage.setItem('drawme_data_v14', JSON.stringify(siteData));
+      if (!IS_PREVIEW) localStorage.setItem('drawme_data_v14', JSON.stringify(siteData));
       applyStyles();
       render();
     }
@@ -1830,16 +2035,18 @@
       const d = siteData;
       document.getElementById('app').innerHTML = `
         <div class="${isAdmin ? 'admin-mode' : ''} min-h-screen relative">
-          <div class="fixed bottom-4 right-4 z-[2100] flex flex-col gap-2">
-            ${!isAdmin ? `
-              <button onclick="showLoginModal()" class="admin-btn" title="後台管理"></button>
-            ` : `
-              <button onclick="selectElement('background-settings')" class="admin-btn" style="background: #4CAF50;" title="網站設定"></button>
-              <button onclick="exitAdmin()" class="admin-btn" style="background: #333;" title="退出編輯"></button>
-            `}
-          </div>
+          ${IS_PREVIEW ? '' : `
+            <div class="fixed bottom-4 right-4 z-[2100] flex flex-col gap-2">
+              ${!isAdmin ? `
+                <button onclick="showLoginModal()" class="admin-btn" title="後台管理"></button>
+              ` : `
+                <button onclick="selectElement('background-settings')" class="admin-btn" style="background: #4CAF50;" title="網站設定"></button>
+                <button onclick="exitAdmin()" class="admin-btn" style="background: #333;" title="退出編輯"></button>
+              `}
+            </div>
+          `}
 
-          ${renderLoginModal()}
+          ${IS_PREVIEW ? '' : renderLoginModal()}
           ${renderSidebar()}
 
           <main class="content-area max-w-4xl mx-auto py-24 px-8">
@@ -2064,6 +2271,7 @@
           })()}
         </div>
       `;
+      updateMobilePreviewOverlay();
     }
 
     function showLoginModal() {
