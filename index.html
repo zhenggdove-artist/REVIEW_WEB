@@ -63,12 +63,12 @@
       },
       // 各區塊框線樣式
       boxStyles: {
-        mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)', maxWidth: 800, maxHeight: 0 },
-        manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: 'rgba(255,255,255,0.5)', shadowColor: 'rgba(0,0,0,0.8)' },
-        actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', shadowColor: 'rgba(0,0,0,0.8)' },
-        locationsBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FFF8E7', shadowColor: 'rgba(0,0,0,0.8)' },
-        supportersBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#E7F0FF', shadowColor: 'rgba(0,0,0,0.8)' },
-        footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0', shadowColor: 'rgba(0,0,0,0.8)' },
+        mediaBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80, maxWidth: 800, maxHeight: 0 },
+        manifestoBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', bgOpacity: 50, shadowColor: '#000000', shadowOpacity: 80 },
+        actionBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#ffffff', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
+        locationsBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FFF8E7', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
+        supportersBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#E7F0FF', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
+        footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
         dashedBorder: { color: '#000000', width: 4, dashLength: 10, gapLength: 6 }
       },
       // Instagram 連結
@@ -116,7 +116,8 @@
         ]
       },
       footer: {
-        contact: { id: 'footer-contact', type: 'richtext', content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。', style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0 } }
+        contact: { id: 'footer-contact', type: 'richtext', content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。', style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0 } },
+        hashtags: { id: 'footer-hashtags', type: 'richtext', content: '#DrawMeTaiwan #社會雕塑 #溫柔視線行動', style: { fontSize: 'text-xl', color: '#000000', opacity: 60 } }
       }
     };
 
@@ -141,6 +142,19 @@
     // 新增地點和贊助者區塊
     if (!siteData.locations) siteData.locations = JSON.parse(JSON.stringify(INITIAL_DATA.locations));
     if (!siteData.supporters) siteData.supporters = JSON.parse(JSON.stringify(INITIAL_DATA.supporters));
+    // 新增 footer hashtags
+    if (!siteData.footer?.hashtags) {
+      if (!siteData.footer) siteData.footer = {};
+      siteData.footer.hashtags = JSON.parse(JSON.stringify(INITIAL_DATA.footer.hashtags));
+    }
+    // 補充 boxStyles 的透明度設定
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox'].forEach(key => {
+      if (siteData.boxStyles[key]) {
+        if (siteData.boxStyles[key].bgOpacity === undefined) siteData.boxStyles[key].bgOpacity = 100;
+        if (siteData.boxStyles[key].shadowOpacity === undefined) siteData.boxStyles[key].shadowOpacity = 80;
+        if (siteData.boxStyles[key].shadowColor === undefined) siteData.boxStyles[key].shadowColor = '#000000';
+      }
+    });
     // 舊版資料遷移：mainMedia -> mediaItems
     if (siteData.hero.mainMedia && !siteData.hero.mediaItems) {
       siteData.hero.mediaItems = [siteData.hero.mainMedia];
@@ -217,6 +231,15 @@
     function removeArtist(index) {
       siteData.supporters.artists.splice(index, 1);
       saveData();
+    }
+
+    // 顏色轉換：hex + opacity -> rgba
+    function hexToRgba(hex, opacity) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + (opacity / 100) + ')';
     }
 
     function applyStyles() {
@@ -578,11 +601,19 @@
                   </div>
                   <div>
                     <label class="text-xs">背景顏色</label>
-                    <input type="color" value="${boxStyle.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {bgColor: this.value})">
+                    <input type="color" value="${boxStyle.bgColor || '#ffffff'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景透明度: ${boxStyle.bgOpacity ?? 100}%</label>
+                    <input type="range" min="0" max="100" value="${boxStyle.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('mediaBox', {bgOpacity: parseInt(this.value)})">
                   </div>
                   <div>
                     <label class="text-xs">陰影顏色</label>
-                    <input type="text" value="${boxStyle.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('mediaBox', {shadowColor: this.value})">
+                    <input type="color" value="${boxStyle.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('mediaBox', {shadowColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影透明度: ${boxStyle.shadowOpacity ?? 80}%</label>
+                    <input type="range" min="0" max="100" value="${boxStyle.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('mediaBox', {shadowOpacity: parseInt(this.value)})">
                   </div>
                 </div>
               </div>
@@ -672,11 +703,19 @@
                   </div>
                   <div>
                     <label class="text-xs">背景顏色</label>
-                    <input type="color" value="${fs.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {bgColor: this.value})">
+                    <input type="color" value="${fs.bgColor || '#FF00A0'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景透明度: ${fs.bgOpacity ?? 100}%</label>
+                    <input type="range" min="0" max="100" value="${fs.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('footerBox', {bgOpacity: parseInt(this.value)})">
                   </div>
                   <div>
                     <label class="text-xs">陰影顏色</label>
-                    <input type="text" value="${fs.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('footerBox', {shadowColor: this.value})">
+                    <input type="color" value="${fs.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('footerBox', {shadowColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影透明度: ${fs.shadowOpacity ?? 80}%</label>
+                    <input type="range" min="0" max="100" value="${fs.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('footerBox', {shadowOpacity: parseInt(this.value)})">
                   </div>
                 </div>
               </div>
@@ -710,12 +749,19 @@
               </div>
               <div>
                 <label class="text-xs">背景顏色</label>
-                <input type="text" value="${ms.bgColor}" class="w-full p-2 border border-gray-300 rounded text-sm" placeholder="例: rgba(255,255,255,0.5)" onchange="updateBoxStyle('manifestoBox', {bgColor: this.value})">
-                <p class="text-xs text-gray-400 mt-1">支援 rgba 透明色，例: rgba(255,255,255,0.5)</p>
+                <input type="color" value="${ms.bgColor || '#ffffff'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('manifestoBox', {bgColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">背景透明度: ${ms.bgOpacity ?? 50}%</label>
+                <input type="range" min="0" max="100" value="${ms.bgOpacity ?? 50}" class="w-full" onchange="updateBoxStyle('manifestoBox', {bgOpacity: parseInt(this.value)})">
               </div>
               <div>
                 <label class="text-xs">陰影顏色</label>
-                <input type="text" value="${ms.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('manifestoBox', {shadowColor: this.value})">
+                <input type="color" value="${ms.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('manifestoBox', {shadowColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">陰影透明度: ${ms.shadowOpacity ?? 80}%</label>
+                <input type="range" min="0" max="100" value="${ms.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('manifestoBox', {shadowOpacity: parseInt(this.value)})">
               </div>
             </div>
           </div>
@@ -742,11 +788,19 @@
               </div>
               <div>
                 <label class="text-xs">背景顏色</label>
-                <input type="color" value="${as.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {bgColor: this.value})">
+                <input type="color" value="${as.bgColor || '#ffffff'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {bgColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">背景透明度: ${as.bgOpacity ?? 100}%</label>
+                <input type="range" min="0" max="100" value="${as.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('actionBox', {bgOpacity: parseInt(this.value)})">
               </div>
               <div>
                 <label class="text-xs">陰影顏色</label>
-                <input type="text" value="${as.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" placeholder="例: rgba(0,0,0,0.8)" onchange="updateBoxStyle('actionBox', {shadowColor: this.value})">
+                <input type="color" value="${as.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('actionBox', {shadowColor: this.value})">
+              </div>
+              <div>
+                <label class="text-xs">陰影透明度: ${as.shadowOpacity ?? 80}%</label>
+                <input type="range" min="0" max="100" value="${as.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('actionBox', {shadowOpacity: parseInt(this.value)})">
               </div>
             </div>
           </div>
@@ -773,11 +827,19 @@
                   </div>
                   <div>
                     <label class="text-xs">背景顏色</label>
-                    <input type="color" value="${ls.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('locationsBox', {bgColor: this.value})">
+                    <input type="color" value="${ls.bgColor || '#FFF8E7'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('locationsBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景透明度: ${ls.bgOpacity ?? 100}%</label>
+                    <input type="range" min="0" max="100" value="${ls.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('locationsBox', {bgOpacity: parseInt(this.value)})">
                   </div>
                   <div>
                     <label class="text-xs">陰影顏色</label>
-                    <input type="text" value="${ls.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" onchange="updateBoxStyle('locationsBox', {shadowColor: this.value})">
+                    <input type="color" value="${ls.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('locationsBox', {shadowColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影透明度: ${ls.shadowOpacity ?? 80}%</label>
+                    <input type="range" min="0" max="100" value="${ls.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('locationsBox', {shadowOpacity: parseInt(this.value)})">
                   </div>
                 </div>
               </div>
@@ -826,11 +888,19 @@
                   </div>
                   <div>
                     <label class="text-xs">背景顏色</label>
-                    <input type="color" value="${ss.bgColor}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('supportersBox', {bgColor: this.value})">
+                    <input type="color" value="${ss.bgColor || '#E7F0FF'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('supportersBox', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">背景透明度: ${ss.bgOpacity ?? 100}%</label>
+                    <input type="range" min="0" max="100" value="${ss.bgOpacity ?? 100}" class="w-full" onchange="updateBoxStyle('supportersBox', {bgOpacity: parseInt(this.value)})">
                   </div>
                   <div>
                     <label class="text-xs">陰影顏色</label>
-                    <input type="text" value="${ss.shadowColor || 'rgba(0,0,0,0.8)'}" class="w-full p-1 border border-gray-300 rounded text-xs" onchange="updateBoxStyle('supportersBox', {shadowColor: this.value})">
+                    <input type="color" value="${ss.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('supportersBox', {shadowColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">陰影透明度: ${ss.shadowOpacity ?? 80}%</label>
+                    <input type="range" min="0" max="100" value="${ss.shadowOpacity ?? 80}" class="w-full" onchange="updateBoxStyle('supportersBox', {shadowOpacity: parseInt(this.value)})">
                   </div>
                 </div>
               </div>
@@ -939,6 +1009,50 @@
               ${leftAnim.content ? `
                 <button onclick="siteData.decoration.leftAnimation.content = ''; saveData();" class="w-full py-2 bg-red-500 text-white rounded font-bold hover:bg-red-600 text-sm">清除動畫</button>
               ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // Hashtags 編輯
+      if (activeElementId === 'footer-hashtags') {
+        const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">Hashtags 設定</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label class="block text-sm font-bold mb-2">Hashtags 內容</label>
+                <textarea id="hashtags-content" class="w-full p-2 border-2 border-black rounded text-sm h-24" placeholder="#DrawMeTaiwan #社會雕塑">${hashtags.content}</textarea>
+                <button class="mt-2 px-4 py-2 bg-pink-500 text-white rounded font-bold hover:bg-pink-600 text-sm" onclick="siteData.footer.hashtags.content = document.getElementById('hashtags-content').value; saveData();">套用內容</button>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">文字顏色</label>
+                <div class="flex gap-2 items-center">
+                  <input type="color" id="hashtags-color" value="${hashtags.style?.color || '#000000'}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded">
+                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), color: document.getElementById('hashtags-color').value}; saveData();">套用顏色</button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">透明度: ${hashtags.style?.opacity ?? 60}%</label>
+                <div class="flex gap-2 items-center">
+                  <input type="range" id="hashtags-opacity" min="0" max="100" value="${hashtags.style?.opacity ?? 60}" class="flex-1">
+                  <button class="px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), opacity: parseInt(document.getElementById('hashtags-opacity').value)}; saveData();">套用</button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">字體大小</label>
+                <select id="hashtags-size" class="w-full p-2 border border-gray-300 rounded text-sm">
+                  <option value="text-sm" ${hashtags.style?.fontSize === 'text-sm' ? 'selected' : ''}>小</option>
+                  <option value="text-lg" ${hashtags.style?.fontSize === 'text-lg' ? 'selected' : ''}>中</option>
+                  <option value="text-xl" ${(hashtags.style?.fontSize === 'text-xl' || !hashtags.style?.fontSize) ? 'selected' : ''}>大</option>
+                  <option value="text-2xl" ${hashtags.style?.fontSize === 'text-2xl' ? 'selected' : ''}>特大</option>
+                </select>
+                <button class="mt-2 px-4 py-2 bg-blue-500 text-white rounded font-bold hover:bg-blue-600 text-sm" onclick="siteData.footer.hashtags.style = {...(siteData.footer.hashtags.style||{}), fontSize: document.getElementById('hashtags-size').value}; saveData();">套用大小</button>
+              </div>
             </div>
           </div>
         `;
@@ -1167,8 +1281,8 @@
 
       const boxStyle = siteData.boxStyles?.mediaBox || INITIAL_DATA.boxStyles.mediaBox;
       const borderStyle = `border: ${boxStyle.borderWidth}px solid ${boxStyle.borderColor};`;
-      const bgStyle = `background: ${boxStyle.bgColor};`;
-      const shadowStyle = `box-shadow: 6px 6px 0px 0px ${boxStyle.shadowColor || 'rgba(0,0,0,0.8)'};`;
+      const bgStyle = 'background: ' + hexToRgba(boxStyle.bgColor || '#ffffff', boxStyle.bgOpacity ?? 100) + ';';
+      const shadowStyle = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(boxStyle.shadowColor || '#000000', boxStyle.shadowOpacity ?? 80) + ';';
       const maxWidthStyle = boxStyle.maxWidth ? `max-width: ${boxStyle.maxWidth}px;` : '';
       const maxHeightStyle = boxStyle.maxHeight ? `max-height: ${boxStyle.maxHeight}px;` : '';
 
@@ -1249,10 +1363,11 @@
 
             ${(() => {
               const ms = siteData.boxStyles?.manifestoBox || INITIAL_DATA.boxStyles.manifestoBox;
-              const msShadow = `box-shadow: 6px 6px 0px 0px ${ms.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const msBg = hexToRgba(ms.bgColor || '#ffffff', ms.bgOpacity ?? 50);
+              const msShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ms.shadowColor || '#000000', ms.shadowOpacity ?? 80) + ';';
               return `
                 <div class="p-12 mb-24 relative space-y-8 shadow-inner ${isAdmin ? 'admin-highlight' : ''}"
-                     style="background: ${ms.bgColor}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${msShadow}"
+                     style="background: ${msBg}; border: ${ms.borderWidth}px solid ${ms.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${msShadow}"
                      ${isAdmin ? 'onclick="selectElement(\'box-manifesto\')"' : ''}>
                   <div class="absolute -top-10 left-0 text-9xl opacity-10 select-none">"</div>
                   ${d.manifesto.paragraphs.map(p => renderElement(p)).join('')}
@@ -1266,10 +1381,11 @@
               <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
                 ${(() => {
                   const as = siteData.boxStyles?.actionBox || INITIAL_DATA.boxStyles.actionBox;
-                  const asShadow = `box-shadow: 6px 6px 0px 0px ${as.shadowColor || 'rgba(0,0,0,0.8)'};`;
+                  const asBg = hexToRgba(as.bgColor || '#ffffff', as.bgOpacity ?? 100);
+                  const asShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(as.shadowColor || '#000000', as.shadowOpacity ?? 80) + ';';
                   return d.actions.items.map((item, idx) => `
                     <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
-                         style="background: ${as.bgColor}; border: ${as.borderWidth}px solid ${as.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(${idx % 2 === 0 ? 1 : -1}deg); ${asShadow}"
+                         style="background: ${asBg}; border: ${as.borderWidth}px solid ${as.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(${idx % 2 === 0 ? 1 : -1}deg); ${asShadow}"
                          ${isAdmin ? 'onclick="event.stopPropagation();selectElement(\'box-action\')"' : ''}>
                       ${renderElement(item)}
                     </div>
@@ -1281,13 +1397,14 @@
             <!-- 索取徽章地點 -->
             ${(() => {
               const ls = siteData.boxStyles?.locationsBox || INITIAL_DATA.boxStyles.locationsBox;
-              const lsShadow = `box-shadow: 6px 6px 0px 0px ${ls.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const lsBg = hexToRgba(ls.bgColor || '#FFF8E7', ls.bgOpacity ?? 100);
+              const lsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ls.shadowColor || '#000000', ls.shadowOpacity ?? 80) + ';';
               const locations = siteData.locations?.items || [];
               return `
                 <div class="mb-24">
                   ${renderElement(d.locations?.title || siteData.locations?.title, 'text-center mb-12')}
                   <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
-                       style="background: ${ls.bgColor}; border: ${ls.borderWidth}px solid ${ls.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${lsShadow}"
+                       style="background: ${lsBg}; border: ${ls.borderWidth}px solid ${ls.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${lsShadow}"
                        ${isAdmin ? 'onclick="selectElement(\'locations-settings\')"' : ''}>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       ${locations.map((loc, idx) => `
@@ -1306,14 +1423,15 @@
             <!-- 贊助廠商 / 參與藝術家 -->
             ${(() => {
               const ss = siteData.boxStyles?.supportersBox || INITIAL_DATA.boxStyles.supportersBox;
-              const ssShadow = `box-shadow: 6px 6px 0px 0px ${ss.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const ssBg = hexToRgba(ss.bgColor || '#E7F0FF', ss.bgOpacity ?? 100);
+              const ssShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ss.shadowColor || '#000000', ss.shadowOpacity ?? 80) + ';';
               const sponsors = siteData.supporters?.sponsors || [];
               const artists = siteData.supporters?.artists || [];
               return `
                 <div class="mb-24">
                   ${renderElement(d.supporters?.title || siteData.supporters?.title, 'text-center mb-12')}
                   <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
-                       style="background: ${ss.bgColor}; border: ${ss.borderWidth}px solid ${ss.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${ssShadow}"
+                       style="background: ${ssBg}; border: ${ss.borderWidth}px solid ${ss.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${ssShadow}"
                        ${isAdmin ? 'onclick="selectElement(\'supporters-settings\')"' : ''}>
 
                     ${sponsors.length > 0 ? `
@@ -1350,21 +1468,30 @@
             ${(() => {
               const db = siteData.boxStyles?.dashedBorder || INITIAL_DATA.boxStyles.dashedBorder;
               const fs = siteData.boxStyles?.footerBox || INITIAL_DATA.boxStyles.footerBox;
-              const fsShadow = `box-shadow: 6px 6px 0px 0px ${fs.shadowColor || 'rgba(0,0,0,0.8)'};`;
+              const fsBg = hexToRgba(fs.bgColor || '#FF00A0', fs.bgOpacity ?? 100);
+              const fsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(fs.shadowColor || '#000000', fs.shadowOpacity ?? 80) + ';';
               const igLink = siteData.instagramLink || '';
+              const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+              const hashtagOpacity = (hashtags.style?.opacity ?? 60) / 100;
               return `
                 <div class="text-center pt-24 ${isAdmin ? 'admin-highlight' : ''}" style="border-top: ${db.width}px dashed ${db.color};" ${isAdmin ? 'onclick="selectElement(\'box-dashed\')"' : ''}>
                   <a href="${igLink}" target="_blank" rel="noopener noreferrer" class="content-box text-white inline-block cursor-pointer hover:scale-105 transition-transform"
-                       style="background: ${fs.bgColor}; border: ${fs.borderWidth}px solid ${fs.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg); ${fsShadow} text-decoration: none;">
+                       style="background: ${fsBg}; border: ${fs.borderWidth}px solid ${fs.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg); ${fsShadow} text-decoration: none;">
                     ${renderElement(d.footer.contact)}
                   </a>
               `;
             })()}
-              <div class="mt-16 flex justify-center gap-6 text-xl opacity-60">
-                <span>#DrawMeTaiwan</span>
-                <span>#社會雕塑</span>
-                <span>#溫柔視線行動</span>
-              </div>
+              ${(() => {
+                const hashtags = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
+                const hashtagOpacity = (hashtags.style?.opacity ?? 60) / 100;
+                return `
+                  <div class="mt-16 flex justify-center ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'footer-hashtags' ? 'ring-4 ring-pink-500' : ''}"
+                       style="opacity: ${hashtagOpacity}; color: ${hashtags.style?.color || '#000000'};"
+                       ${isAdmin ? 'onclick="event.stopPropagation();selectElement(\'footer-hashtags\')"' : ''}>
+                    <div class="${hashtags.style?.fontSize || 'text-xl'}">${hashtags.content}</div>
+                  </div>
+                `;
+              })()}
             </div>
           </main>
 
