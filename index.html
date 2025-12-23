@@ -48,12 +48,14 @@
     .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
 
     /* 輪播：交叉淡入淡出 + 尺寸（高度）漸變 */
+    .carousel-container { transition: width 350ms ease; will-change: width; }
     .carousel-stage { position: relative; overflow: hidden; transition: height 350ms ease; will-change: height; }
     .carousel-layer { transition: opacity 350ms ease; will-change: opacity; }
     .carousel-layer-next { position: absolute; left: 0; top: 0; width: 100%; opacity: 0; }
     .carousel-stage.carousel-animating .carousel-layer-current { opacity: 0; }
     .carousel-stage.carousel-animating .carousel-layer-next { opacity: 1; }
     @media (prefers-reduced-motion: reduce) {
+      .carousel-container { transition: none !important; }
       .carousel-stage { transition: none !important; }
       .carousel-layer { transition: none !important; }
     }
@@ -1455,6 +1457,35 @@
       return Promise.race([Promise.all(waits), timeout(timeoutMs)]);
     }
 
+    async function measureCarouselSpecSize(spec) {
+      const container = getCarouselContainerEl();
+      if (!container) return null;
+
+      const parent = container.parentElement || document.body;
+      const measure = container.cloneNode(false);
+      measure.removeAttribute('id');
+      measure.style.position = 'absolute';
+      measure.style.left = '-100000px';
+      measure.style.top = '0';
+      measure.style.visibility = 'hidden';
+      measure.style.pointerEvents = 'none';
+      measure.style.transform = 'none';
+      measure.style.width = 'auto';
+      measure.style.height = 'auto';
+      measure.style.transition = 'none';
+      measure.innerHTML = `<div class="carousel-stage"><div class="carousel-layer carousel-layer-current">${spec?.html || ''}</div></div>`;
+      parent.appendChild(measure);
+
+      await waitForCarouselLayerReady(measure, spec, 2000);
+
+      const width = measure.offsetWidth || 0;
+      const stageEl = measure.querySelector('.carousel-stage');
+      const stageHeight = stageEl ? stageEl.getBoundingClientRect().height : 0;
+      measure.remove();
+
+      return { width, stageHeight };
+    }
+
     function renderCarouselSlot() {
       const slot = getCarouselSlotEl();
       if (!slot) {
@@ -1526,11 +1557,14 @@
       try {
         const stage = getCarouselStageEl();
         const currentLayer = getCarouselMediaEl();
-        if (!stage || !currentLayer) {
+        const container = getCarouselContainerEl();
+        if (!stage || !currentLayer || !container) {
           siteData.hero.currentMediaIndex = targetIndex;
           renderCarouselSlot();
           return;
         }
+
+        container.style.width = '';
 
         stage.classList.remove('carousel-animating');
         stage.style.height = '';
@@ -1539,7 +1573,13 @@
         const currentSpec = getCarouselMediaSpec(items[currentIndex]);
         await waitForCarouselLayerReady(currentLayer, currentSpec, 2000);
 
+        const currentWidth = Math.max(1, container.offsetWidth || 1);
+        const currentStageHeight = Math.max(1, stage.getBoundingClientRect().height || currentLayer.getBoundingClientRect().height || 1);
+
         const nextSpec = getCarouselMediaSpec(items[targetIndex]);
+        const measured = await measureCarouselSpecSize(nextSpec);
+        const targetWidth = Math.max(1, (measured && measured.width) || currentWidth);
+        const targetStageHeight = Math.max(1, (measured && measured.stageHeight) || currentStageHeight);
         const nextLayer = document.createElement('div');
         nextLayer.className = 'carousel-layer carousel-layer-next';
         nextLayer.innerHTML = nextSpec.html;
@@ -1547,16 +1587,21 @@
 
         await waitForCarouselLayerReady(nextLayer, nextSpec, 2000);
 
-        const currentHeight = Math.max(1, currentLayer.getBoundingClientRect().height || 1);
         const nextHeightRaw = nextLayer.getBoundingClientRect().height;
-        const nextHeight = Math.max(1, nextHeightRaw || currentHeight);
+        let nextStageHeight = targetStageHeight;
+        if (!Number.isFinite(nextStageHeight) || nextStageHeight <= 0) {
+          nextStageHeight = Math.max(1, nextHeightRaw || currentStageHeight);
+        }
 
-        stage.style.height = `${Math.round(currentHeight)}px`;
+        container.style.width = `${Math.round(currentWidth)}px`;
+        stage.style.height = `${Math.round(currentStageHeight)}px`;
+        container.getBoundingClientRect();
         stage.getBoundingClientRect();
 
         requestAnimationFrame(() => {
           stage.classList.add('carousel-animating');
-          stage.style.height = `${Math.round(nextHeight)}px`;
+          container.style.width = `${Math.round(targetWidth)}px`;
+          stage.style.height = `${Math.round(nextStageHeight)}px`;
         });
 
         if (carouselFadeTimer) clearTimeout(carouselFadeTimer);
@@ -2924,7 +2969,7 @@
 
       const showNav = items.length > 1;
       return `
-        <div id="hero-carousel-container" class="media-container relative cursor-pointer"
+        <div id="hero-carousel-container" class="media-container relative cursor-pointer carousel-container"
              style="${borderStyle} ${bgStyle} ${shadowStyle} ${maxWidthStyle} ${maxHeightStyle} overflow: hidden; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
              onclick="${isAdmin ? '' : 'nextMedia()'}">
           <div id="hero-carousel-stage" class="carousel-stage">
