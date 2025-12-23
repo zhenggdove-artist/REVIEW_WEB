@@ -602,10 +602,9 @@
       if (getActiveDevice() !== 'mobile') return el;
       if (!el.mobile || typeof el.mobile !== 'object') return el;
       const merged = { ...el, ...el.mobile };
-      // 全域欄位不做裝置覆寫（避免手機調整影響內容本身）
-      ['id', 'type', 'content', 'imageUrl'].forEach(k => {
-        if (el[k] !== undefined) merged[k] = el[k];
-      });
+      // id/type 不做裝置覆寫
+      merged.id = el.id;
+      merged.type = el.type;
       merged.style = { ...(el.style || {}), ...(el.mobile.style || {}) };
       return merged;
     }
@@ -876,7 +875,7 @@
       const el = findElement(id);
       if (el) {
         const isMobileEdit = getActiveDevice() === 'mobile';
-        const globalKeys = new Set(['id', 'type', 'content', 'imageUrl']);
+        const globalKeys = new Set(['id', 'type']);
 
         Object.entries(updates || {}).forEach(([key, val]) => {
           if (key === 'style') return;
@@ -1011,8 +1010,9 @@
     }
 
     function updateMediaItem(index, url) {
-      siteData.hero.mediaItems[index].content = url;
-      saveData();
+      const item = siteData.hero.mediaItems[index];
+      if (!item) return;
+      updateElement(item.id, { content: url });
     }
 
     // ============ 選取範圍保存/恢復 ============
@@ -1311,19 +1311,22 @@
                   <button onclick="addMediaItem()" class="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">+ 新增</button>
                 </div>
                 <div class="space-y-3 max-h-[400px] overflow-y-auto">
-                  ${items.map((item, idx) => `
-                    <div class="border-2 border-gray-300 rounded p-2 ${siteData.hero.currentMediaIndex === idx ? 'border-pink-500 bg-pink-50' : ''}">
-                      <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold">#${idx + 1}</span>
-                        <button onclick="removeMediaItem(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                  ${items.map((item, idx) => {
+                    const viewItem = getResponsiveElement(item);
+                    return `
+                      <div class="border-2 border-gray-300 rounded p-2 ${siteData.hero.currentMediaIndex === idx ? 'border-pink-500 bg-pink-50' : ''}">
+                        <div class="flex justify-between items-center mb-2">
+                          <span class="text-xs font-bold">#${idx + 1}</span>
+                          <button onclick="removeMediaItem(${idx})" class="text-red-500 hover:text-red-700 text-xs">刪除</button>
+                        </div>
+                        <input type="text" value="${viewItem.content}" class="w-full p-1 border border-gray-300 rounded text-xs mb-2" placeholder="圖片或影片網址" onchange="updateMediaItem(${idx}, this.value)">
+                        ${getYouTubeId(viewItem.content) ?
+                          `<div class="text-xs text-gray-500">YouTube 影片</div>` :
+                          `<img src="${viewItem.content}" class="w-full h-20 object-cover rounded">`
+                        }
                       </div>
-                      <input type="text" value="${item.content}" class="w-full p-1 border border-gray-300 rounded text-xs mb-2" placeholder="圖片或影片網址" onchange="updateMediaItem(${idx}, this.value)">
-                      ${getYouTubeId(item.content) ?
-                        `<div class="text-xs text-gray-500">YouTube 影片</div>` :
-                        `<img src="${item.content}" class="w-full h-20 object-cover rounded">`
-                      }
-                    </div>
-                  `).join('')}
+                    `;
+                  }).join('')}
                 </div>
               </div>
             </div>
@@ -1750,6 +1753,12 @@
       const el = findElement(activeElementId);
       if (!el) return '';
       const viewEl = getResponsiveElement(el);
+      const isDecoCircle = el.id === 'deco-circle';
+      const circleDefaultPosMode = getActiveDevice() === 'mobile' ? 'absolute' : 'fixed';
+      const circlePosMode = viewEl.positionMode || circleDefaultPosMode;
+      const circleAnchorX = viewEl.anchorX || 'right';
+      const circlePosX = viewEl.posX ?? 80;
+      const circlePosY = viewEl.posY ?? 80;
 
       const isMedia = el.type === 'media' || el.id === 'hero-media';
       const isImage = el.type === 'image';
@@ -1875,7 +1884,7 @@
                        onmouseup="saveSelection()"
                        onkeyup="saveSelection()"
                        onfocus="saveSelection()"
-                       onblur="saveRichText('${el.id}')">${el.content}</div>
+                       onblur="saveRichText('${el.id}')">${viewEl.content}</div>
                   <p class="text-xs text-gray-400 mt-1">在上方選取文字後，使用上方工具套用樣式</p>
                 </div>
 
@@ -1901,26 +1910,55 @@
             ` : isMedia ? `
               <div>
                 <label class="block text-sm font-bold mb-2">媒體網址</label>
-                <input type="text" value="${el.content}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="圖片網址 或 YouTube 網址" onchange="updateElement('${el.id}', {content: this.value})">
+                <input type="text" value="${viewEl.content}" class="w-full p-2 border-2 border-black rounded text-sm" placeholder="圖片網址 或 YouTube 網址" onchange="updateElement('${el.id}', {content: this.value})">
                 <p class="text-xs text-gray-400 mt-1">支援：圖片網址、YouTube 連結</p>
               </div>
               <div class="text-sm text-gray-500">預覽：</div>
-              ${getYouTubeId(el.content) ?
-                `<iframe width="100%" height="150" src="https://www.youtube.com/embed/${getYouTubeId(el.content)}" frameborder="0" class="rounded border-2 border-black"></iframe>` :
-                `<img src="${el.content}" class="w-full rounded border-2 border-black">`
+              ${getYouTubeId(viewEl.content) ?
+                `<iframe width="100%" height="150" src="https://www.youtube.com/embed/${getYouTubeId(viewEl.content)}" frameborder="0" class="rounded border-2 border-black"></iframe>` :
+                `<img src="${viewEl.content}" class="w-full rounded border-2 border-black">`
               }
             ` : `
               <div>
                 <label class="block text-sm font-bold mb-2">圖片網址</label>
-                <input type="text" value="${el.content}" class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {content: this.value})">
+                <input type="text" value="${viewEl.content}" class="w-full p-2 border-2 border-black rounded" onchange="updateElement('${el.id}', {content: this.value})">
               </div>
               <div class="text-sm text-gray-500">預覽：</div>
-              <img src="${el.content}" class="w-full rounded border-2 border-black">
+              <img src="${viewEl.content}" class="w-full rounded border-2 border-black">
             `}
             <div>
               <label class="block text-sm font-bold mb-2">旋轉角度: ${viewEl.style?.rotation || 0}°</label>
               <input type="range" min="-10" max="10" step="0.5" value="${viewEl.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
             </div>
+            ${isDecoCircle ? `
+              <div class="border-t pt-4 mt-4">
+                <div class="text-sm font-bold mb-3">圓形裝飾位置</div>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs font-bold">捲動行為</label>
+                    <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('deco-circle', {positionMode: this.value})">
+                      <option value="absolute" ${circlePosMode === 'absolute' ? 'selected' : ''}>固定在頁面（捲動時會離開畫面，較不遮擋）</option>
+                      <option value="fixed" ${circlePosMode === 'fixed' ? 'selected' : ''}>固定在畫面（捲動時不動，可能遮擋）</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">水平基準</label>
+                    <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('deco-circle', {anchorX: this.value})">
+                      <option value="left" ${circleAnchorX === 'left' ? 'selected' : ''}>左側</option>
+                      <option value="right" ${circleAnchorX === 'right' ? 'selected' : ''}>右側</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">水平偏移（距離${circleAnchorX === 'right' ? '右' : '左'}側）: ${circlePosX}px</label>
+                    <input type="range" min="-200" max="1000" value="${circlePosX}" class="w-full" onchange="updateElement('deco-circle', {posX: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold">垂直偏移（距離上方）: ${circlePosY}px</label>
+                    <input type="range" min="-200" max="2000" value="${circlePosY}" class="w-full" onchange="updateElement('deco-circle', {posY: parseInt(this.value)})">
+                  </div>
+                </div>
+              </div>
+            ` : ''}
             ${(getActiveDevice() === 'mobile' && el.mobile) ? `
               <button onclick="clearElementMobileOverrides('${el.id}')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
             ` : ''}
@@ -1957,11 +1995,7 @@
     function saveRichText(id) {
       const editor = document.getElementById('rich-editor');
       if (editor) {
-        const el = findElement(id);
-        if (el) {
-          el.content = editor.innerHTML;
-          localStorage.setItem('drawme_data_v14', JSON.stringify(siteData));
-        }
+        updateElement(id, { content: editor.innerHTML });
       }
     }
 
@@ -1969,8 +2003,9 @@
     function renderCarousel() {
       const items = siteData.hero.mediaItems || [];
       const currentIndex = siteData.hero.currentMediaIndex || 0;
-      const currentItem = items[currentIndex];
-      if (!currentItem) return '';
+      const currentItemBase = items[currentIndex];
+      if (!currentItemBase) return '';
+      const currentItem = getResponsiveElement(currentItemBase);
 
       const boxStyle = getBoxStyle('mediaBox');
       const borderStyle = `border: ${boxStyle.borderWidth}px solid ${boxStyle.borderColor};`;
@@ -2254,8 +2289,15 @@
 
           ${(() => {
             const circle = getResponsiveElement(d.decoration?.circleImage);
+            const defaultPosMode = getActiveDevice() === 'mobile' ? 'absolute' : 'fixed';
+            const posMode = circle?.positionMode || defaultPosMode; // fixed | absolute
+            const anchorX = circle?.anchorX || 'right'; // left | right
+            const posX = (circle?.posX ?? 80);
+            const posY = (circle?.posY ?? 80);
+            const posClass = posMode === 'fixed' ? 'fixed' : 'absolute';
+            const posStyle = `top:${posY}px; ${anchorX}:${posX}px;`;
             return `
-              <div class="fixed top-20 right-20 z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}">
+              <div class="${posClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}" style="${posStyle}">
                 <div
                   class="w-40 h-40 rounded-full overflow-hidden border-2 border-black opacity-30 hover:opacity-60 transition-opacity ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'deco-circle' ? 'ring-4 ring-pink-500' : ''}"
                   style="transform: rotate(${circle?.style?.rotation || 12}deg);"
