@@ -47,9 +47,16 @@
     .media-container { display: inline-block; background: white; padding: 24px; max-width: 100%; }
     .content-box { display: inline-block; background: white; padding: 32px 48px; max-width: 90%; word-wrap: break-word; }
 
-    /* 輪播淡出/淡入 */
-    .carousel-media-wrap { display: block; transition: opacity 350ms ease; will-change: opacity; }
-    .carousel-media-wrap.carousel-hidden { opacity: 0; }
+    /* 輪播：交叉淡入淡出 + 尺寸（高度）漸變 */
+    .carousel-stage { position: relative; overflow: hidden; transition: height 350ms ease; will-change: height; }
+    .carousel-layer { transition: opacity 350ms ease; will-change: opacity; }
+    .carousel-layer-next { position: absolute; left: 0; top: 0; width: 100%; opacity: 0; }
+    .carousel-stage.carousel-animating .carousel-layer-current { opacity: 0; }
+    .carousel-stage.carousel-animating .carousel-layer-next { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      .carousel-stage { transition: none !important; }
+      .carousel-layer { transition: none !important; }
+    }
     /* 自訂動畫游標 */
     .custom-cursor-enabled { cursor: none !important; }
     .custom-cursor-enabled * { cursor: none !important; }
@@ -1347,11 +1354,26 @@
     let carouselAutoTimer = null;
     let carouselFadeTimer = null;
     let carouselIsAnimating = false;
-    let carouselRenderHiddenOnce = false;
+    const carouselPreloadedUrls = new Set();
 
     function getCarouselItems() {
       const items = siteData?.hero?.mediaItems;
       return Array.isArray(items) ? items : [];
+    }
+
+    function preloadCarouselImages() {
+      if (isAdmin) return;
+      const items = getCarouselItems();
+      items.forEach(itemBase => {
+        const spec = getCarouselMediaSpec(itemBase);
+        if (spec.kind !== 'image' || !spec.url) return;
+        if (carouselPreloadedUrls.has(spec.url)) return;
+        carouselPreloadedUrls.add(spec.url);
+        const img = new Image();
+        img.decoding = 'async';
+        img.loading = 'eager';
+        img.src = spec.url;
+      });
     }
 
     function getCarouselIndex() {
@@ -1363,8 +1385,74 @@
       return document.getElementById('hero-carousel-slot');
     }
 
+    function getCarouselContainerEl() {
+      return document.getElementById('hero-carousel-container');
+    }
+
+    function getCarouselStageEl() {
+      return document.getElementById('hero-carousel-stage');
+    }
+
     function getCarouselMediaEl() {
       return document.getElementById('hero-carousel-media');
+    }
+
+    function getCarouselMediaSpec(itemBase) {
+      const item = getResponsiveElement(itemBase || {});
+      const content = String(item?.content || '');
+      const youtubeId = getYouTubeId(content);
+      if (youtubeId) {
+        return {
+          kind: 'youtube',
+          url: content,
+          html: `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded block"></iframe>`
+        };
+      }
+
+      const lower = content.toLowerCase();
+      const isVideo = lower.includes('.mp4') || lower.includes('.webm');
+      if (content && isVideo) {
+        return {
+          kind: 'video',
+          url: content,
+          html: `<video src="${content}" controls class="block max-w-full h-auto rounded"></video>`
+        };
+      }
+
+      if (!content) {
+        return {
+          kind: 'image',
+          url: '',
+          html: `<div class="w-full h-64 bg-gray-200 rounded"></div>`
+        };
+      }
+
+      return {
+        kind: 'image',
+        url: content,
+        html: `<img src="${content}" alt="圖片" class="block max-w-full h-auto rounded">`
+      };
+    }
+
+    function waitForCarouselLayerReady(layerEl, spec, timeoutMs = 2000) {
+      if (!layerEl) return Promise.resolve();
+      if (!spec || spec.kind !== 'image') return Promise.resolve();
+      const imgs = Array.from(layerEl.querySelectorAll('img'));
+      if (!imgs.length) return Promise.resolve();
+
+      const timeout = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const waits = imgs.map(img => new Promise(resolve => {
+        if (img.complete && img.naturalWidth > 0) return resolve();
+        const done = () => {
+          img.removeEventListener('load', done);
+          img.removeEventListener('error', done);
+          resolve();
+        };
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+      }));
+
+      return Promise.race([Promise.all(waits), timeout(timeoutMs)]);
     }
 
     function renderCarouselSlot() {
@@ -1403,19 +1491,7 @@
     }
 
     function syncCarouselUI() {
-      if (carouselRenderHiddenOnce) {
-        const mediaEl = getCarouselMediaEl();
-        if (mediaEl) {
-          mediaEl.classList.add('carousel-hidden');
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              const el = getCarouselMediaEl();
-              if (el) el.classList.remove('carousel-hidden');
-            });
-          });
-        }
-        carouselRenderHiddenOnce = false;
-      }
+      preloadCarouselImages();
       scheduleCarouselAuto();
     }
 
@@ -1424,7 +1500,7 @@
       else scheduleCarouselAuto();
     });
 
-    function goToMediaIndex(nextIndex, opts = {}) {
+    async function goToMediaIndex(nextIndex, opts = {}) {
       const items = getCarouselItems();
       if (items.length <= 1) {
         scheduleCarouselAuto();
@@ -1432,7 +1508,8 @@
       }
 
       const targetIndex = ((nextIndex % items.length) + items.length) % items.length;
-      const currentIndex = getCarouselIndex();
+      let currentIndex = getCarouselIndex();
+      if (!Number.isFinite(currentIndex) || currentIndex < 0 || currentIndex >= items.length) currentIndex = 0;
       if (targetIndex === currentIndex) {
         scheduleCarouselAuto();
         return;
@@ -1444,29 +1521,61 @@
       }
 
       carouselIsAnimating = true;
-      scheduleCarouselAuto();
+      stopCarouselAuto();
 
-      const mediaEl = getCarouselMediaEl();
-      if (!mediaEl) {
+      try {
+        const stage = getCarouselStageEl();
+        const currentLayer = getCarouselMediaEl();
+        if (!stage || !currentLayer) {
+          siteData.hero.currentMediaIndex = targetIndex;
+          renderCarouselSlot();
+          return;
+        }
+
+        stage.classList.remove('carousel-animating');
+        stage.style.height = '';
+        stage.querySelectorAll('.carousel-layer-next').forEach(el => el.remove());
+
+        const currentSpec = getCarouselMediaSpec(items[currentIndex]);
+        await waitForCarouselLayerReady(currentLayer, currentSpec, 2000);
+
+        const nextSpec = getCarouselMediaSpec(items[targetIndex]);
+        const nextLayer = document.createElement('div');
+        nextLayer.className = 'carousel-layer carousel-layer-next';
+        nextLayer.innerHTML = nextSpec.html;
+        stage.appendChild(nextLayer);
+
+        await waitForCarouselLayerReady(nextLayer, nextSpec, 2000);
+
+        const currentHeight = Math.max(1, currentLayer.getBoundingClientRect().height || 1);
+        const nextHeightRaw = nextLayer.getBoundingClientRect().height;
+        const nextHeight = Math.max(1, nextHeightRaw || currentHeight);
+
+        stage.style.height = `${Math.round(currentHeight)}px`;
+        stage.getBoundingClientRect();
+
+        requestAnimationFrame(() => {
+          stage.classList.add('carousel-animating');
+          stage.style.height = `${Math.round(nextHeight)}px`;
+        });
+
+        if (carouselFadeTimer) clearTimeout(carouselFadeTimer);
+        await new Promise(resolve => {
+          carouselFadeTimer = setTimeout(() => {
+            carouselFadeTimer = null;
+            resolve();
+          }, CAROUSEL_FADE_MS);
+        });
+
         siteData.hero.currentMediaIndex = targetIndex;
         renderCarouselSlot();
+      } catch (e) {
+        siteData.hero.currentMediaIndex = targetIndex;
+        renderCarouselSlot();
+      } finally {
         carouselIsAnimating = false;
-        return;
+        scheduleCarouselAuto();
       }
-
-      mediaEl.classList.add('carousel-hidden');
-
-      if (carouselFadeTimer) clearTimeout(carouselFadeTimer);
-      carouselFadeTimer = setTimeout(() => {
-        carouselFadeTimer = null;
-        siteData.hero.currentMediaIndex = targetIndex;
-        carouselRenderHiddenOnce = true;
-        renderCarouselSlot();
-
-        setTimeout(() => {
-          carouselIsAnimating = false;
-        }, CAROUSEL_FADE_MS);
-      }, CAROUSEL_FADE_MS);
     }
 
     function nextMedia(opts = {}) {
@@ -2790,7 +2899,8 @@
     // ============ 輪播渲染 ============
     function renderCarousel() {
       const items = siteData.hero.mediaItems || [];
-      const currentIndex = siteData.hero.currentMediaIndex || 0;
+      let currentIndex = siteData.hero.currentMediaIndex || 0;
+      if (!Number.isFinite(currentIndex) || currentIndex < 0 || currentIndex >= items.length) currentIndex = 0;
       const currentItemBase = items[currentIndex];
       if (!currentItemBase) return '';
       const currentItem = getResponsiveElement(currentItemBase);
@@ -2805,21 +2915,21 @@
       const youtubeId = getYouTubeId(currentItem.content);
       let mediaContent = '';
       if (youtubeId) {
-        mediaContent = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded"></iframe>`;
+        mediaContent = `<iframe width="100%" height="450" src="https://www.youtube.com/embed/${youtubeId}" frameborder="0" allowfullscreen class="rounded block"></iframe>`;
       } else if (currentItem.content && (currentItem.content.includes('.mp4') || currentItem.content.includes('.webm'))) {
-        mediaContent = `<video src="${currentItem.content}" controls class="max-w-full h-auto rounded"></video>`;
+        mediaContent = `<video src="${currentItem.content}" controls class="block max-w-full h-auto rounded"></video>`;
       } else {
-        mediaContent = `<img src="${currentItem.content}" alt="圖片" class="max-w-full h-auto rounded">`;
+        mediaContent = `<img src="${currentItem.content}" alt="圖片" class="block max-w-full h-auto rounded">`;
       }
 
       const showNav = items.length > 1;
-      const mediaWrapClass = carouselRenderHiddenOnce ? 'carousel-hidden' : '';
-      const wrappedMediaContent = `<div id="hero-carousel-media" class="carousel-media-wrap ${mediaWrapClass}">${mediaContent}</div>`;
       return `
-        <div class="media-container relative cursor-pointer"
+        <div id="hero-carousel-container" class="media-container relative cursor-pointer"
              style="${borderStyle} ${bgStyle} ${shadowStyle} ${maxWidthStyle} ${maxHeightStyle} overflow: hidden; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; transform: rotate(1deg);"
              onclick="${isAdmin ? '' : 'nextMedia()'}">
-          ${wrappedMediaContent}
+          <div id="hero-carousel-stage" class="carousel-stage">
+            <div id="hero-carousel-media" class="carousel-layer carousel-layer-current">${mediaContent}</div>
+          </div>
           ${showNav ? `
             <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
               ${items.map((_, idx) => `
