@@ -759,8 +759,18 @@
 
     function saveData() {
       if (!IS_PREVIEW) localStorage.setItem('drawme_data_v14', JSON.stringify(siteData));
+      // 保存側邊欄和頁面滾動位置
+      const sidebar = document.querySelector('.sidebar .overflow-y-auto');
+      const sidebarScrollTop = sidebar ? sidebar.scrollTop : 0;
+      const pageScrollTop = window.scrollY;
       applyStyles();
       render();
+      // 恢復滾動位置
+      requestAnimationFrame(() => {
+        const newSidebar = document.querySelector('.sidebar .overflow-y-auto');
+        if (newSidebar) newSidebar.scrollTop = sidebarScrollTop;
+        window.scrollTo(0, pageScrollTop);
+      });
     }
 
     function updateInstagramLink(url) {
