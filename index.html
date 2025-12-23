@@ -161,6 +161,77 @@
     .hero-title-effect-ripple img {
       filter: url(#fx-water-ripple);
     }
+
+    /* 圓形裝飾圖片特效 */
+    .circle-img-fx {
+      --circle-fx-image: none;
+      --circle-fx-rot-speed: 60s;
+      --circle-fx-glitch-speed: 2.5s;
+      --circle-fx-glitch-color: #00ffff;
+      --circle-fx-glitch-opacity: 0.5;
+      --circle-fx-glitch-shift: 4px;
+      --circle-fx-glitch-shift-neg: -4px;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .circle-img-fx .circle-img-rotator { width: 100%; height: 100%; }
+    .circle-img-fx img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .circle-img-fx-rotate .circle-img-rotator,
+    .circle-img-fx-rotate-glitch .circle-img-rotator {
+      animation: circleImgRotate var(--circle-fx-rot-speed) linear infinite;
+      transform-origin: 50% 50%;
+    }
+    @keyframes circleImgRotate { to { transform: rotate(360deg); } }
+
+    .circle-img-fx-glitch::before,
+    .circle-img-fx-glitch::after,
+    .circle-img-fx-rotate-glitch::before,
+    .circle-img-fx-rotate-glitch::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: var(--circle-fx-image);
+      background-size: cover;
+      background-position: center;
+      opacity: var(--circle-fx-glitch-opacity);
+      pointer-events: none;
+      mix-blend-mode: screen;
+      will-change: transform, clip-path, filter;
+    }
+
+    .circle-img-fx-glitch::before,
+    .circle-img-fx-rotate-glitch::before {
+      animation: circleImgGlitchA var(--circle-fx-glitch-speed) steps(2, end) infinite;
+      filter: drop-shadow(var(--circle-fx-glitch-shift-neg) 0 0 var(--circle-fx-glitch-color));
+    }
+
+    .circle-img-fx-glitch::after,
+    .circle-img-fx-rotate-glitch::after {
+      animation: circleImgGlitchB var(--circle-fx-glitch-speed) steps(2, end) infinite;
+      filter: drop-shadow(var(--circle-fx-glitch-shift) 0 0 var(--circle-fx-glitch-color));
+      mix-blend-mode: lighten;
+    }
+
+    @keyframes circleImgGlitchA {
+      0% { clip-path: inset(0 0 80% 0); transform: translate(var(--circle-fx-glitch-shift-neg), 0); }
+      10% { clip-path: inset(10% 0 60% 0); transform: translate(var(--circle-fx-glitch-shift), -1px); }
+      20% { clip-path: inset(30% 0 45% 0); transform: translate(var(--circle-fx-glitch-shift-neg), 1px); }
+      30% { clip-path: inset(55% 0 25% 0); transform: translate(var(--circle-fx-glitch-shift), 0); }
+      40% { clip-path: inset(70% 0 10% 0); transform: translate(var(--circle-fx-glitch-shift-neg), 0); }
+      50% { clip-path: inset(0 0 80% 0); transform: translate(0, 0); }
+      100% { clip-path: inset(0 0 80% 0); transform: translate(0, 0); }
+    }
+
+    @keyframes circleImgGlitchB {
+      0% { clip-path: inset(85% 0 0 0); transform: translate(var(--circle-fx-glitch-shift), 0); }
+      12% { clip-path: inset(60% 0 20% 0); transform: translate(var(--circle-fx-glitch-shift-neg), 1px); }
+      24% { clip-path: inset(35% 0 45% 0); transform: translate(var(--circle-fx-glitch-shift), -1px); }
+      36% { clip-path: inset(15% 0 70% 0); transform: translate(var(--circle-fx-glitch-shift-neg), 0); }
+      48% { clip-path: inset(85% 0 0 0); transform: translate(var(--circle-fx-glitch-shift), 0); }
+      100% { clip-path: inset(85% 0 0 0); transform: translate(0, 0); }
+    }
   </style>
 </head>
 <body>
@@ -2203,6 +2274,16 @@
       const circlePosY = viewEl.posY ?? 80;
       const circleSize = viewEl.size ?? 160;
       const circleOpacity = getCircleImageOpacityPercent(viewEl);
+      const circleFxType = String(viewEl.style?.circleFxType || 'none'); // none | rotate | glitch | rotate-glitch
+      const circleFxRotateSpeedNum = parseFloat(viewEl.style?.circleFxRotateSpeed);
+      const circleFxRotateSpeed = Number.isFinite(circleFxRotateSpeedNum) ? Math.max(5, Math.min(200, circleFxRotateSpeedNum)) : 60;
+      const circleFxGlitchSpeedNum = parseFloat(viewEl.style?.circleFxGlitchSpeed);
+      const circleFxGlitchSpeed = Number.isFinite(circleFxGlitchSpeedNum) ? Math.max(0.3, Math.min(10, circleFxGlitchSpeedNum)) : 2.5;
+      const circleFxGlitchStrengthNum = parseFloat(viewEl.style?.circleFxGlitchStrength);
+      const circleFxGlitchStrength = Number.isFinite(circleFxGlitchStrengthNum) ? Math.max(0, Math.min(100, circleFxGlitchStrengthNum)) : 60;
+      const circleFxGlitchColor = String(viewEl.style?.circleFxGlitchColor || '#00ffff');
+      const circleFxHasRotate = circleFxType === 'rotate' || circleFxType === 'rotate-glitch';
+      const circleFxHasGlitch = circleFxType === 'glitch' || circleFxType === 'rotate-glitch';
       const titleOffsetX = parseFloat(viewEl.style?.offsetX) || 0;
       const titleOffsetY = parseFloat(viewEl.style?.offsetY) || 0;
       const heroTitleHasImage = isHeroTitle && viewEl.displayMode === 'image' && !!viewEl.imageUrl;
@@ -2478,6 +2559,50 @@
                   <div>
                     <label class="text-xs font-bold">垂直偏移（距離上方）: ${circlePosY}px</label>
                     <input type="range" min="-200" max="2000" value="${circlePosY}" class="w-full" onchange="updateElement('deco-circle', {posY: parseInt(this.value)})">
+                  </div>
+
+                  <div class="border-t pt-3 mt-3">
+                    <div class="text-xs font-bold mb-2">圖片特效</div>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="text-xs font-bold">特效類型</label>
+                        <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('deco-circle', {style: {circleFxType: this.value}})">
+                          <option value="none" ${circleFxType === 'none' ? 'selected' : ''}>無</option>
+                          <option value="rotate" ${circleFxType === 'rotate' ? 'selected' : ''}>緩慢旋轉</option>
+                          <option value="glitch" ${circleFxType === 'glitch' ? 'selected' : ''}>Glitch</option>
+                          <option value="rotate-glitch" ${circleFxType === 'rotate-glitch' ? 'selected' : ''}>旋轉 + Glitch</option>
+                        </select>
+                      </div>
+
+                      ${circleFxHasRotate ? `
+                        <div>
+                          <label class="text-xs font-bold">旋轉速度: ${circleFxRotateSpeed}s/圈</label>
+                          <input type="range" min="5" max="200" step="1" value="${circleFxRotateSpeed}" class="w-full" onchange="updateElement('deco-circle', {style: {circleFxRotateSpeed: parseFloat(this.value)}})">
+                        </div>
+                      ` : ''}
+
+                      ${circleFxHasGlitch ? `
+                        <div>
+                          <label class="text-xs font-bold">Glitch 速度: ${circleFxGlitchSpeed}s</label>
+                          <input type="range" min="0.3" max="10" step="0.1" value="${circleFxGlitchSpeed}" class="w-full" onchange="updateElement('deco-circle', {style: {circleFxGlitchSpeed: parseFloat(this.value)}})">
+                        </div>
+                        <div>
+                          <label class="text-xs font-bold">Glitch 強度: ${circleFxGlitchStrength}</label>
+                          <input type="range" min="0" max="100" step="1" value="${circleFxGlitchStrength}" class="w-full" onchange="updateElement('deco-circle', {style: {circleFxGlitchStrength: parseInt(this.value)}})">
+                        </div>
+                        <div>
+                          <label class="text-xs font-bold">Glitch 顏色</label>
+                          <div class="flex gap-2 items-center mt-1">
+                            <input type="color" value="${circleFxGlitchColor}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded" onchange="updateElement('deco-circle', {style: {circleFxGlitchColor: this.value}})">
+                            <input type="text" value="${circleFxGlitchColor}" class="flex-1 p-2 border border-gray-300 rounded text-sm" onchange="updateElement('deco-circle', {style: {circleFxGlitchColor: this.value}})">
+                          </div>
+                        </div>
+                      ` : ''}
+
+                      <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
+                        <strong>提示：</strong>特效可在手機/桌機分別設定；手機若卡頓可降低 Glitch 強度或改用單一旋轉。
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2843,6 +2968,24 @@
             const posStyle = `top:${posY}px; ${anchorX}:${posX}px;`;
             const circleSize = parseInt(circle?.size ?? 160) || 160;
             const circleOpacity = getCircleImageOpacityPercent(circle);
+            const fxType = String(circle?.style?.circleFxType || 'none'); // none | rotate | glitch | rotate-glitch
+            const fxRotateSpeedNum = parseFloat(circle?.style?.circleFxRotateSpeed);
+            const fxRotateSpeed = Number.isFinite(fxRotateSpeedNum) ? Math.max(5, Math.min(200, fxRotateSpeedNum)) : 60;
+            const fxGlitchSpeedNum = parseFloat(circle?.style?.circleFxGlitchSpeed);
+            const fxGlitchSpeed = Number.isFinite(fxGlitchSpeedNum) ? Math.max(0.3, Math.min(10, fxGlitchSpeedNum)) : 2.5;
+            const fxGlitchStrengthNum = parseFloat(circle?.style?.circleFxGlitchStrength);
+            const fxGlitchStrength = Number.isFinite(fxGlitchStrengthNum) ? Math.max(0, Math.min(100, fxGlitchStrengthNum)) : 60;
+            const fxGlitchColor = String(circle?.style?.circleFxGlitchColor || '#00ffff');
+            const fxShift = Math.max(0, Math.round((fxGlitchStrength / 100) * 8));
+            const fxOpacity = Math.min(0.9, Math.max(0, (fxGlitchStrength / 100) * 0.85));
+            const fxClass =
+              fxType === 'rotate' ? 'circle-img-fx-rotate'
+              : fxType === 'glitch' ? 'circle-img-fx-glitch'
+              : fxType === 'rotate-glitch' ? 'circle-img-fx-rotate-glitch'
+              : '';
+            const fxVars = circle?.content
+              ? `opacity:${circleOpacity / 100};--circle-fx-image:url('${circle.content}');--circle-fx-rot-speed:${fxRotateSpeed}s;--circle-fx-glitch-speed:${fxGlitchSpeed}s;--circle-fx-glitch-color:${fxGlitchColor};--circle-fx-glitch-opacity:${fxOpacity};--circle-fx-glitch-shift:${fxShift}px;--circle-fx-glitch-shift-neg:${-fxShift}px;`
+              : `opacity:${circleOpacity / 100};`;
             return `
               <div class="${posClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}" style="${posStyle}">
                 <div
@@ -2851,7 +2994,7 @@
                   ${isAdmin ? 'onclick="selectElement(\'deco-circle\')"' : ''}
                 >
                   ${circle?.content ?
-                    `<img src="${circle.content}" class="w-full h-full object-cover" style="opacity:${circleOpacity / 100};" alt="裝飾圖片">` :
+                    `<div class="circle-img-fx ${fxClass}" style="${fxVars}"><div class="circle-img-rotator"><img src="${circle.content}" class="w-full h-full object-cover" alt="裝飾圖片"></div></div>` :
                     `<div class="w-full h-full bg-gray-300"></div>`
                   }
                 </div>
