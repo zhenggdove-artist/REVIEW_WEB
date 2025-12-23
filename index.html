@@ -58,8 +58,16 @@
       settings: { englishFont: 'GarmentDistrict', cursorSize: 48, cursorSpeed: 80, cursorEnabled: true },
       background: { color: '#fcfcfc', image: 'https://www.transparenttextures.com/patterns/handmade-paper.png', size: 'auto', posX: 50, posY: 50, repeat: 'repeat', opacity: 100 },
       decoration: {
-        circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12 } },
+        circleImage: { id: 'deco-circle', type: 'image', content: 'https://picsum.photos/seed/circle/400/400', style: { rotation: 12, opacity: 100 } },
         leftAnimation: { id: 'left-animation', content: '', width: 200, height: 300, posX: 30, posY: 50 }
+      },
+      // 圖檔下載區塊
+      downloads: {
+        title: { id: 'downloads-title', type: 'richtext', content: '圖檔下載', style: { fontSize: 'text-4xl', color: '#000000', rotation: -1 } },
+        items: [
+          { id: 'dl1', name: '徽章圖檔 (PNG)', url: '', description: '高解析度徽章圖片' },
+          { id: 'dl2', name: '海報圖檔 (PDF)', url: '', description: 'A4 大小可列印海報' }
+        ]
       },
       // 各區塊框線樣式
       boxStyles: {
@@ -69,6 +77,7 @@
         locationsBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FFF8E7', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
         supportersBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#E7F0FF', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
         footerBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#FF00A0', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
+        downloadsBox: { borderColor: '#1a1a1a', borderWidth: 2, bgColor: '#F0FFF0', bgOpacity: 100, shadowColor: '#000000', shadowOpacity: 80 },
         dashedBorder: { color: '#000000', width: 4, dashLength: 10, gapLength: 6 }
       },
       // Instagram 連結
@@ -131,7 +140,7 @@
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
     // 補充缺少的 shadowColor 和新區塊樣式
-    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox'].forEach(key => {
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
       if (!siteData.boxStyles[key]) {
         siteData.boxStyles[key] = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles[key]));
       } else if (!siteData.boxStyles[key].shadowColor) {
@@ -147,8 +156,14 @@
       if (!siteData.footer) siteData.footer = {};
       siteData.footer.hashtags = JSON.parse(JSON.stringify(INITIAL_DATA.footer.hashtags));
     }
+    // 新增下載區塊
+    if (!siteData.downloads) siteData.downloads = JSON.parse(JSON.stringify(INITIAL_DATA.downloads));
+    // 補充圓形圖透明度
+    if (siteData.decoration?.circleImage?.style && siteData.decoration.circleImage.style.opacity === undefined) {
+      siteData.decoration.circleImage.style.opacity = 100;
+    }
     // 補充 boxStyles 的透明度設定
-    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox'].forEach(key => {
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
       if (siteData.boxStyles[key]) {
         if (siteData.boxStyles[key].bgOpacity === undefined) siteData.boxStyles[key].bgOpacity = 100;
         if (siteData.boxStyles[key].shadowOpacity === undefined) siteData.boxStyles[key].shadowOpacity = 80;
@@ -230,6 +245,23 @@
 
     function removeArtist(index) {
       siteData.supporters.artists.splice(index, 1);
+      saveData();
+    }
+
+    // 下載項目管理
+    function addDownload() {
+      const newId = 'dl' + Date.now();
+      siteData.downloads.items.push({ id: newId, name: '新下載項目', url: '', description: '' });
+      saveData();
+    }
+
+    function updateDownload(index, field, value) {
+      siteData.downloads.items[index][field] = value;
+      saveData();
+    }
+
+    function removeDownload(index) {
+      siteData.downloads.items.splice(index, 1);
       saveData();
     }
 
@@ -1460,6 +1492,37 @@
                         </div>
                       </div>
                     ` : ''}
+                  </div>
+                </div>
+              `;
+            })()}
+
+            <!-- 圖檔下載 -->
+            ${(() => {
+              const ds = siteData.boxStyles?.downloadsBox || INITIAL_DATA.boxStyles.downloadsBox;
+              const dsBg = hexToRgba(ds.bgColor || '#F0FFF0', ds.bgOpacity ?? 100);
+              const dsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ds.shadowColor || '#000000', ds.shadowOpacity ?? 80) + ';';
+              const downloads = siteData.downloads?.items || [];
+              const hasDownloads = downloads.some(dl => dl.url);
+              if (!hasDownloads && !isAdmin) return '';
+              return `
+                <div class="mb-24">
+                  ${renderElement(siteData.downloads?.title, 'text-center mb-12')}
+                  <div class="p-8 ${isAdmin ? 'admin-highlight' : ''}"
+                       style="background: ${dsBg}; border: ${ds.borderWidth}px solid ${ds.borderColor}; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; ${dsShadow}"
+                       ${isAdmin ? 'onclick="selectElement(\'downloads-settings\')"' : ''}>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      ${downloads.filter(dl => dl.url || isAdmin).map((dl, idx) => `
+                        <a href="${dl.url || '#'}" ${dl.url ? 'download' : ''} target="_blank" rel="noopener noreferrer"
+                           class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform ${!dl.url ? 'opacity-50' : ''}"
+                           style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
+                          <div class="text-3xl mb-2">📥</div>
+                          <div class="font-bold text-lg mb-1">${dl.name}</div>
+                          <div class="text-sm text-gray-600">${dl.description || ''}</div>
+                          ${!dl.url && isAdmin ? '<div class="text-xs text-red-500 mt-1">(尚未設定連結)</div>' : ''}
+                        </a>
+                      `).join('')}
+                    </div>
                   </div>
                 </div>
               `;
