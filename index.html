@@ -2420,7 +2420,6 @@
                         ${isAdmin ? `
                           <div class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform cursor-pointer ${!dl.url ? 'opacity-50' : ''}"
                                style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
-                            <div class="text-3xl mb-2">📥</div>
                             <div class="font-bold text-lg mb-1">${dl.name}</div>
                             <div class="text-sm text-gray-600">${dl.description || ''}</div>
                             ${!dl.url ? '<div class="text-xs text-red-500 mt-1">(尚未設定連結)</div>' : ''}
@@ -2429,7 +2428,6 @@
                           <a href="${dl.url}" download target="_blank" rel="noopener noreferrer"
                              class="p-4 bg-white/80 rounded-lg text-center hover:scale-105 transition-transform"
                              style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
-                            <div class="text-3xl mb-2">📥</div>
                             <div class="font-bold text-lg mb-1">${dl.name}</div>
                             <div class="text-sm text-gray-600">${dl.description || ''}</div>
                           </a>
