@@ -4,13 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RE:VIEW Taiwan - 重新觀看行動</title>
+  <link rel="preload" href="./fonts/ChenYuluoyan-Thin.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="./fonts/GarmentDistrict-Regular.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preload" href="./fonts/Streetwear.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preload" href="./fonts/GamaHand.otf" as="font" type="font/otf" crossorigin>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @font-face { font-family: 'ChenYuluoyan'; src: url('./fonts/ChenYuluoyan-Thin.ttf') format('truetype'); font-display: swap; }
-    @font-face { font-family: 'GarmentDistrict'; src: url('./fonts/GarmentDistrict-Regular.otf') format('opentype'); font-display: swap; }
-    @font-face { font-family: 'Streetwear'; src: url('./fonts/Streetwear.otf') format('opentype'); font-display: swap; }
-    @font-face { font-family: 'GamaHand'; src: url('./fonts/GamaHand.otf') format('opentype'); font-display: swap; }
-    body { background-color: #fcfcfc; background-image: url('https://www.transparenttextures.com/patterns/handmade-paper.png'); color: #1a1a1a; margin: 0; padding: 0; overflow-x: hidden; }
+    @font-face { font-family: 'ChenYuluoyan'; src: url('./fonts/ChenYuluoyan-Thin.ttf') format('truetype'); font-display: block; }
+    @font-face { font-family: 'GarmentDistrict'; src: url('./fonts/GarmentDistrict-Regular.otf') format('opentype'); font-display: block; }
+    @font-face { font-family: 'Streetwear'; src: url('./fonts/Streetwear.otf') format('opentype'); font-display: block; }
+    @font-face { font-family: 'GamaHand'; src: url('./fonts/GamaHand.otf') format('opentype'); font-display: block; }
+    body { background-color: #fcfcfc; color: #1a1a1a; margin: 0; padding: 0; overflow-x: hidden; }
     .sketch-border { border: 2px solid #1a1a1a; border-radius: 255px 15px 225px 15px/15px 225px 15px 255px; }
     .sketch-shadow { box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.8); }
     .admin-highlight { outline: 3px dashed #FF00A0 !important; outline-offset: 4px; cursor: pointer; }
