@@ -278,6 +278,53 @@
       48% { clip-path: inset(85% 0 0 0); transform: translate(var(--circle-fx-glitch-shift), 0); }
       100% { clip-path: inset(85% 0 0 0); transform: translate(0, 0); }
     }
+
+    /* 左側浮動直式連結（快閃活動報名） */
+    .floating-signup {
+      position: fixed;
+      left: 16px;
+      top: 180px;
+      z-index: 60;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      line-height: 1.1;
+      text-decoration: none;
+      user-select: none;
+      padding: 10px 8px;
+      border-radius: 999px;
+      color: #00ffff;
+      text-shadow:
+        0 0 6px rgba(0,255,255,0.9),
+        0 0 18px rgba(0,255,255,0.75),
+        0 0 36px rgba(0,255,255,0.55),
+        0 0 54px rgba(255,0,160,0.35);
+      animation: floatingSignupFlicker 2.8s infinite;
+      transform: translateZ(0);
+      pointer-events: auto;
+    }
+    .floating-signup:hover { filter: brightness(1.15); }
+    .floating-signup:focus { outline: 3px dashed #FF00A0; outline-offset: 4px; }
+    .floating-signup-disabled { opacity: 0.35; animation: none; }
+
+    @keyframes floatingSignupFlicker {
+      0%, 100% { opacity: 1; }
+      5% { opacity: 0.85; }
+      6% { opacity: 1; }
+      12% { opacity: 0.7; }
+      13% { opacity: 1; }
+      45% { opacity: 0.78; }
+      46% { opacity: 1; }
+      60% { opacity: 0.9; }
+      61% { opacity: 1; }
+      72% { opacity: 0.8; }
+      73% { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .floating-signup { animation: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -364,6 +411,21 @@
         "scrollWithPage": true
       },
       "posX": -81
+    },
+    "floatingSignup": {
+      "id": "floating-signup",
+      "type": "link",
+      "enabled": true,
+      "text": "快閃活動報名",
+      "url": "",
+      "posX": 16,
+      "posY": 180,
+      "fontSize": 22,
+      "mobile": {
+        "posX": 10,
+        "posY": 140,
+        "fontSize": 18
+      }
     }
   },
   "boxStyles": {
@@ -760,12 +822,32 @@
 };
 
     // ============ 狀態管理 ============
-    let siteData = JSON.parse(localStorage.getItem('drawme_data_v14')) || JSON.parse(JSON.stringify(INITIAL_DATA));
-    // 補充左側動畫區域
-    if (!siteData.decoration?.leftAnimation) {
+    let siteData = null;
+    try {
+      siteData = JSON.parse(localStorage.getItem('drawme_data_v14'));
+    } catch {
+      siteData = null;
+    }
+    if (!siteData || typeof siteData !== 'object') siteData = JSON.parse(JSON.stringify(INITIAL_DATA));
+
+    if (!siteData.decoration || typeof siteData.decoration !== 'object') {
+      siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
+    }
+    // 補充裝飾：左側動畫 / 浮動報名文字
+    if (!siteData.decoration.leftAnimation) {
       siteData.decoration.leftAnimation = JSON.parse(JSON.stringify(INITIAL_DATA.decoration.leftAnimation));
     }
-    if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
+    if (!siteData.decoration.floatingSignup) {
+      siteData.decoration.floatingSignup = JSON.parse(JSON.stringify(INITIAL_DATA.decoration.floatingSignup));
+    }
+    // 浮動報名文字：確保文字/連結/啟用為全站共用（避免被 mobile 覆寫）
+    if (siteData.decoration.floatingSignup?.mobile && typeof siteData.decoration.floatingSignup.mobile === 'object') {
+      const fsMobile = siteData.decoration.floatingSignup.mobile;
+      if (fsMobile.text !== undefined) { siteData.decoration.floatingSignup.text = fsMobile.text; delete fsMobile.text; }
+      if (fsMobile.url !== undefined) { siteData.decoration.floatingSignup.url = fsMobile.url; delete fsMobile.url; }
+      if (fsMobile.enabled !== undefined) { siteData.decoration.floatingSignup.enabled = fsMobile.enabled; delete fsMobile.enabled; }
+      if (Object.keys(fsMobile).length === 0) delete siteData.decoration.floatingSignup.mobile;
+    }
     if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     // 補充 pageTitle / 分享文字 / favicon（含舊資料遷移）
     const OLD_DEFAULT_TITLE = 'RE:VIEW Taiwan - 重新觀看行動';
@@ -1481,6 +1563,34 @@
         delete siteData.decoration.leftAnimation.mobile;
         saveData();
       }
+    }
+
+    function updateFloatingSignupShared(updates) {
+      if (!siteData.decoration || typeof siteData.decoration !== 'object') siteData.decoration = {};
+      if (!siteData.decoration.floatingSignup) {
+        siteData.decoration.floatingSignup = JSON.parse(JSON.stringify(INITIAL_DATA.decoration?.floatingSignup || {
+          id: 'floating-signup',
+          type: 'link',
+          enabled: true,
+          text: '快閃活動報名',
+          url: '',
+          posX: 16,
+          posY: 180,
+          fontSize: 22
+        }));
+      }
+
+      Object.assign(siteData.decoration.floatingSignup, updates || {});
+
+      // 文字/連結/啟用：強制維持為共用欄位，避免被 mobile 覆寫
+      if (siteData.decoration.floatingSignup.mobile && typeof siteData.decoration.floatingSignup.mobile === 'object') {
+        delete siteData.decoration.floatingSignup.mobile.text;
+        delete siteData.decoration.floatingSignup.mobile.url;
+        delete siteData.decoration.floatingSignup.mobile.enabled;
+        if (Object.keys(siteData.decoration.floatingSignup.mobile).length === 0) delete siteData.decoration.floatingSignup.mobile;
+      }
+
+      saveData();
     }
 
     // ============ 輪播功能 ============
@@ -2805,6 +2915,82 @@
         `;
       }
 
+      // 快閃活動報名（左側浮動直式文字）
+      if (activeElementId === 'floating-signup') {
+        const fsBase = siteData.decoration?.floatingSignup || INITIAL_DATA.decoration.floatingSignup;
+        const fs = getResponsiveElement(fsBase || {});
+        const enabled = fs.enabled !== false;
+        const posX = fs.posX ?? 16;
+        const posY = fs.posY ?? 180;
+        const fontSize = fs.fontSize ?? 22;
+        const shared = siteData.decoration?.floatingSignup || fsBase || {};
+        const text = shared.text ?? '快閃活動報名';
+        const url = shared.url ?? '';
+        return `
+          <div class="sidebar open">
+            <div class="p-4 border-b-2 border-black flex justify-between items-center">
+              <h3 class="text-lg font-bold">快閃活動報名（浮動文字）</h3>
+              <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+            </div>
+            ${renderDeviceModeControls()}
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">顯示</h4>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="floating-signup-enabled" ${enabled ? 'checked' : ''}>
+                  <label for="floating-signup-enabled" class="text-sm font-bold">啟用浮動文字</label>
+                  <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto"
+                          onclick="updateFloatingSignupShared({enabled: document.getElementById('floating-signup-enabled').checked})">套用</button>
+                </div>
+              </div>
+
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">文字/連結（桌機/手機共用）</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">文字內容</label>
+                    <input type="text" value="${String(text || '')}" class="w-full p-2 border border-gray-300 rounded text-sm" placeholder="例如：快閃活動報名"
+                           onchange="updateFloatingSignupShared({text: this.value})">
+                  </div>
+                  <div>
+                    <label class="text-xs">連結網址</label>
+                    <input type="text" value="${String(url || '')}" class="w-full p-2 border border-gray-300 rounded text-sm" placeholder="https://..."
+                           onchange="updateFloatingSignupShared({url: this.value})">
+                    <p class="text-[11px] text-gray-500 mt-1">留空則只顯示文字，不會跳轉。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">位置/字體大小（依目前裝置分開儲存）</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs">位置 X（距離左邊）: ${posX}px</label>
+                    <input type="range" min="-200" max="500" value="${posX}" class="w-full" onchange="updateElement('floating-signup', {posX: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">位置 Y（距離上方）: ${posY}px</label>
+                    <input type="range" min="0" max="2000" value="${posY}" class="w-full" onchange="updateElement('floating-signup', {posY: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">字體大小: ${fontSize}px</label>
+                    <input type="range" min="10" max="80" value="${fontSize}" class="w-full" onchange="updateElement('floating-signup', {fontSize: parseInt(this.value)})">
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
+                <strong>提示：</strong>位置/字體大小會依「桌機/手機」分開儲存，兩邊互不影響；文字與連結為共用。
+              </div>
+
+              ${(getActiveDevice() === 'mobile' && siteData.decoration?.floatingSignup?.mobile) ? `
+                <button onclick="clearElementMobileOverrides('floating-signup')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
       // Hashtags 編輯
       if (activeElementId === 'footer-hashtags') {
         const hashtagsBase = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
@@ -3732,6 +3918,35 @@
                   }
                 </div>
               </div>
+            `;
+          })()}
+
+          <!-- 左側浮動直式連結（快閃活動報名） -->
+          ${(() => {
+            const fsBase = d.decoration?.floatingSignup || INITIAL_DATA.decoration?.floatingSignup;
+            const fs = getResponsiveElement(fsBase);
+            if (!fs) return '';
+            const enabled = fs.enabled !== false;
+            if (!enabled && !isAdmin) return '';
+
+            const posX = fs.posX ?? 16;
+            const posY = fs.posY ?? 180;
+            const fontSize = fs.fontSize ?? 22;
+            const text = String(fs.text || '快閃活動報名');
+            const url = String(fs.url || '').trim();
+
+            const tag = url ? 'a' : 'div';
+            const hrefAttrs = url ? `href="${url}" target="_blank" rel="noopener noreferrer"` : '';
+            const onClickAttrs = isAdmin ? 'onclick="event.preventDefault();event.stopPropagation();selectElement(\'floating-signup\')"' : '';
+            const disabledClass = enabled ? '' : 'floating-signup-disabled';
+
+            return `
+              <${tag}
+                class="floating-signup ${disabledClass} ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'floating-signup' ? 'ring-4 ring-pink-500' : ''}"
+                style="left:${posX}px; top:${posY}px; font-size:${fontSize}px;"
+                ${hrefAttrs}
+                ${onClickAttrs}
+              >${text}</${tag}>
             `;
           })()}
 
