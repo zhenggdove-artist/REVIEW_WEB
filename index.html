@@ -834,6 +834,33 @@
   }
 };
 
+    // ============ 已知文字錯誤修正（資料遷移）============
+    function fixKnownContentTypos(data) {
+      if (!data || typeof data !== 'object') return;
+      const fixHtml = (html) => {
+        if (typeof html !== 'string') return html;
+        return html.replace(/【重新觀看行動[｝}]】/g, '【重新觀看行動】');
+      };
+
+      const paragraphs =
+        (data.manifesto && Array.isArray(data.manifesto.paragraphs))
+          ? data.manifesto.paragraphs
+          : null;
+
+      if (paragraphs) {
+        paragraphs.forEach(p => {
+          if (!p || typeof p !== 'object') return;
+          if (typeof p.content === 'string') p.content = fixHtml(p.content);
+          if (p.mobile && typeof p.mobile === 'object' && typeof p.mobile.content === 'string') {
+            p.mobile.content = fixHtml(p.mobile.content);
+          }
+        });
+      }
+    }
+
+    // 修正 INITIAL_DATA（避免重置後仍出現錯字）
+    fixKnownContentTypos(INITIAL_DATA);
+
     // ============ 狀態管理 ============
     let siteData = null;
     try {
@@ -842,6 +869,7 @@
       siteData = null;
     }
     if (!siteData || typeof siteData !== 'object') siteData = JSON.parse(JSON.stringify(INITIAL_DATA));
+    fixKnownContentTypos(siteData);
 
     if (!siteData.decoration || typeof siteData.decoration !== 'object') {
       siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
