@@ -510,7 +510,15 @@
       "bgColor": "#FFF8E7",
       "shadowColor": "rgba(0,0,0,0.8)",
       "bgOpacity": 100,
-      "shadowOpacity": 80
+      "shadowOpacity": 80,
+      "itemNameSize": 18,
+      "itemAddressSize": 14,
+      "itemNoteSize": 12,
+      "mobile": {
+        "itemNameSize": 16,
+        "itemAddressSize": 13,
+        "itemNoteSize": 11
+      }
     },
     "supportersBox": {
       "borderColor": "#1a1a1a",
@@ -1010,7 +1018,17 @@
     if (siteData.decoration?.leftAnimation) {
       if (siteData.decoration.leftAnimation.useSequence === undefined) siteData.decoration.leftAnimation.useSequence = true;
       if (siteData.decoration.leftAnimation.sequenceSpeed === undefined) siteData.decoration.leftAnimation.sequenceSpeed = 80;
-      if (siteData.decoration.leftAnimation.scrollWithPage === undefined) siteData.decoration.leftAnimation.scrollWithPage = false;
+      if (siteData.decoration.leftAnimation.scrollWithPage === undefined) siteData.decoration.leftAnimation.scrollWithPage = true;
+
+      // 相容舊資料：若 scrollWithPage=true 但 posY 明顯是 px（>100），則視為「跟內容一起滑走」
+      const normalizeLeftAnimScrollMode = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        if (obj.scrollWithPage !== true) return;
+        const y = parseFloat(obj.posY);
+        if (Number.isFinite(y) && y > 100) obj.scrollWithPage = false;
+      };
+      normalizeLeftAnimScrollMode(siteData.decoration.leftAnimation);
+      normalizeLeftAnimScrollMode(siteData.decoration.leftAnimation.mobile);
     }
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
     // 補充缺少的 shadowColor 和新區塊樣式
@@ -2861,6 +2879,9 @@
       // 索取徽章地點設定
       if (activeElementId === 'locations-settings') {
         const ls = getBoxStyle('locationsBox');
+        const locNameSize = clampNumber(ls.itemNameSize, 8, 64, 18);
+        const locAddressSize = clampNumber(ls.itemAddressSize, 8, 48, 14);
+        const locNoteSize = clampNumber(ls.itemNoteSize, 8, 48, 12);
         const locations = siteData.locations?.items || [];
         return `
           <div class="sidebar open">
@@ -2895,6 +2916,24 @@
                   </div>
                 </div>
               </div>
+              <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">文字大小</h4>
+                <div class="space-y-2">
+                  <div>
+                    <label class="text-xs">地點名稱：${locNameSize}px</label>
+                    <input type="range" min="8" max="64" value="${locNameSize}" class="w-full" onchange="updateBoxStyle('locationsBox', {itemNameSize: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">地址：${locAddressSize}px</label>
+                    <input type="range" min="8" max="48" value="${locAddressSize}" class="w-full" onchange="updateBoxStyle('locationsBox', {itemAddressSize: parseInt(this.value)})">
+                  </div>
+                  <div>
+                    <label class="text-xs">備註：${locNoteSize}px</label>
+                    <input type="range" min="8" max="48" value="${locNoteSize}" class="w-full" onchange="updateBoxStyle('locationsBox', {itemNoteSize: parseInt(this.value)})">
+                  </div>
+                </div>
+                <p class="text-[11px] text-gray-500 mt-2">此項可分別設定桌機/手機（切換上方裝置模式）。</p>
+              </div>
               <div>
                 <div class="flex justify-between items-center mb-2">
                   <h4 class="font-bold text-sm">地點列表 (${locations.length}個)</h4>
@@ -2914,6 +2953,9 @@
                   `).join('')}
                 </div>
               </div>
+              ${(getActiveDevice() === 'mobile' && siteData.boxStyles?.locationsBox?.mobile) ? `
+                <button onclick="clearBoxStyleMobileOverrides('locationsBox')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
+              ` : ''}
             </div>
           </div>
         `;
@@ -3112,10 +3154,10 @@
                 <h4 class="font-bold mb-3 text-sm">滾動行為</h4>
                 <div class="flex items-center gap-2">
                   <input type="checkbox" id="left-anim-scroll" ${scrollWithPage ? 'checked' : ''}>
-                  <label for="left-anim-scroll" class="text-sm">隨頁面滾動</label>
+                  <label for="left-anim-scroll" class="text-sm">固定在畫面（跟著滑動）</label>
                   <button class="px-3 py-1 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 ml-auto" onclick="updateLeftAnimation({scrollWithPage: document.getElementById('left-anim-scroll').checked})">套用</button>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">勾選後動畫會跟著頁面一起滾動，否則固定在螢幕上</p>
+                <p class="text-xs text-gray-400 mt-1">勾選：固定在螢幕上（跟著你滑動）；取消：跟內容一起滑走</p>
               </div>
               <div>
                 <label class="block text-sm font-bold mb-2">寬度: ${leftAnim.width || 200}px</label>
@@ -3138,10 +3180,10 @@
                   </div>
                 </div>
                 <div class="mt-4">
-                  <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${scrollWithPage ? leftAnim.posY ?? 50 : leftAnim.posY ?? 50}${scrollWithPage ? 'px' : '%'}</label>
-                  <input type="range" min="${scrollWithPage ? '0' : '0'}" max="${scrollWithPage ? '3000' : '100'}" value="${leftAnim.posY ?? 50}" class="w-full" onchange="updateLeftAnimation({posY: parseInt(this.value)})">
+                  <label class="block text-sm font-bold mb-2">垂直位置 (Y): ${leftAnim.posY ?? 50}${scrollWithPage ? '%' : 'px'}</label>
+                  <input type="range" min="0" max="${scrollWithPage ? '100' : '3000'}" value="${leftAnim.posY ?? 50}" class="w-full" onchange="updateLeftAnimation({posY: parseInt(this.value)})">
                   <div class="flex justify-between text-xs text-gray-400 mt-1">
-                    ${scrollWithPage ? '<span>0px</span><span>1500px</span><span>3000px</span>' : '<span>上 0%</span><span>中 50%</span><span>下 100%</span>'}
+                    ${scrollWithPage ? '<span>上 0%</span><span>中 50%</span><span>下 100%</span>' : '<span>0px</span><span>1500px</span><span>3000px</span>'}
                   </div>
                 </div>
               </div>
@@ -4185,6 +4227,9 @@
               const ls = getBoxStyle('locationsBox');
               const lsBg = hexToRgba(ls.bgColor || '#FFF8E7', ls.bgOpacity ?? 100);
               const lsShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(ls.shadowColor || '#000000', ls.shadowOpacity ?? 80) + ';';
+              const locNameSize = clampNumber(ls.itemNameSize, 8, 64, 18);
+              const locAddressSize = clampNumber(ls.itemAddressSize, 8, 48, 14);
+              const locNoteSize = clampNumber(ls.itemNoteSize, 8, 48, 12);
               const locations = siteData.locations?.items || [];
               return `
                 <div class="mb-24">
@@ -4195,9 +4240,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       ${locations.map((loc, idx) => `
                         <div class="p-4 bg-white/80 rounded-lg" style="transform: rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg);">
-                          <div class="font-bold text-lg mb-1">${loc.name}</div>
-                          <div class="text-sm text-gray-600 mb-1">${loc.address}</div>
-                          <div class="text-xs text-pink-600">${loc.note}</div>
+                          <div class="font-bold mb-1" style="font-size:${locNameSize}px;">${loc.name}</div>
+                          <div class="text-gray-600 mb-1" style="font-size:${locAddressSize}px;">${loc.address}</div>
+                          <div class="text-pink-600" style="font-size:${locNoteSize}px;">${loc.note}</div>
                         </div>
                       `).join('')}
                     </div>
@@ -4343,15 +4388,17 @@
             const useSequence = leftAnim?.useSequence !== false;
             const scrollWithPage = leftAnim?.scrollWithPage === true;
             const posX = leftAnim?.posX ?? 30;
-            const posY = leftAnim?.posY ?? 50;
-            const positionClass = scrollWithPage ? 'absolute' : 'fixed';
-            const positionStyle = scrollWithPage ? `left: ${posX}px; top: ${posY}px;` : `left: ${posX}px; top: ${posY}%;`;
+            const posYRaw = leftAnim?.posY ?? 50;
+            const fixedY = clampNumber(posYRaw, 0, 100, 50);
+            const absY = clampNumber(posYRaw, 0, 3000, 50);
+            const positionClass = scrollWithPage ? 'fixed' : 'absolute';
+            const positionStyle = scrollWithPage ? `left: ${posX}px; top: ${fixedY}%;` : `left: ${posX}px; top: ${absY}px;`;
             return `
               <div id="left-anim-sequence" class="${positionClass} z-10 ${isAdmin ? 'pointer-events-auto' : 'pointer-events-none'}"
                    style="${positionStyle}">
                 <div
                   class="${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'left-animation' ? 'ring-4 ring-pink-500' : ''}"
-                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px; ${scrollWithPage ? '' : 'transform: translateY(-50%);'}"
+                  style="width: ${leftAnim?.width || 200}px; height: ${leftAnim?.height || 300}px; ${scrollWithPage ? 'transform: translateY(-50%);' : ''}"
                   ${isAdmin ? 'onclick="selectElement(\'left-animation\')"' : ''}
                 >
                   ${useSequence ?
