@@ -774,55 +774,13 @@
 };
 
     // ============ 狀態管理 ============
-    function cloneInitialData() {
-      return JSON.parse(JSON.stringify(INITIAL_DATA));
-    }
-
-    function loadSiteDataFromStorage() {
-      const key = 'drawme_data_v14';
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw);
-      } catch {
-        try { localStorage.removeItem(key); } catch { /* ignore */ }
-        return null;
-      }
-    }
-
-    let siteData = loadSiteDataFromStorage();
-    if (!siteData || typeof siteData !== 'object' || Array.isArray(siteData)) {
-      siteData = cloneInitialData();
-    }
-    if (!siteData.decoration || typeof siteData.decoration !== 'object') siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
-    if (!siteData.settings || typeof siteData.settings !== 'object') siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
-    if (!siteData.hero || typeof siteData.hero !== 'object') siteData.hero = JSON.parse(JSON.stringify(INITIAL_DATA.hero));
-    if (!siteData.hero.title || typeof siteData.hero.title !== 'object') siteData.hero.title = JSON.parse(JSON.stringify(INITIAL_DATA.hero.title));
-    if (!siteData.hero.subtitle || typeof siteData.hero.subtitle !== 'object') siteData.hero.subtitle = JSON.parse(JSON.stringify(INITIAL_DATA.hero.subtitle));
-    if (!siteData.manifesto || typeof siteData.manifesto !== 'object') siteData.manifesto = JSON.parse(JSON.stringify(INITIAL_DATA.manifesto));
-    if (!Array.isArray(siteData.manifesto.paragraphs)) siteData.manifesto.paragraphs = JSON.parse(JSON.stringify(INITIAL_DATA.manifesto.paragraphs));
-    if (!siteData.actions || typeof siteData.actions !== 'object') siteData.actions = JSON.parse(JSON.stringify(INITIAL_DATA.actions));
-    if (!siteData.actions.title || typeof siteData.actions.title !== 'object') siteData.actions.title = JSON.parse(JSON.stringify(INITIAL_DATA.actions.title));
-    if (!Array.isArray(siteData.actions.items)) siteData.actions.items = JSON.parse(JSON.stringify(INITIAL_DATA.actions.items));
-    if (!siteData.footer || typeof siteData.footer !== 'object') siteData.footer = JSON.parse(JSON.stringify(INITIAL_DATA.footer));
-    if (siteData.footer.contact && typeof siteData.footer.contact !== 'object') siteData.footer.contact = JSON.parse(JSON.stringify(INITIAL_DATA.footer.contact));
-    if (siteData.footer.hashtags && typeof siteData.footer.hashtags !== 'object') siteData.footer.hashtags = JSON.parse(JSON.stringify(INITIAL_DATA.footer.hashtags));
-    if (!siteData.background || typeof siteData.background !== 'object') siteData.background = JSON.parse(JSON.stringify(INITIAL_DATA.background));
-    if (!siteData.boxStyles || typeof siteData.boxStyles !== 'object') siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
-    if (!siteData.locations || typeof siteData.locations !== 'object') siteData.locations = JSON.parse(JSON.stringify(INITIAL_DATA.locations));
-    if (!siteData.locations.title || typeof siteData.locations.title !== 'object') siteData.locations.title = JSON.parse(JSON.stringify(INITIAL_DATA.locations.title));
-    if (!Array.isArray(siteData.locations.items)) siteData.locations.items = JSON.parse(JSON.stringify(INITIAL_DATA.locations.items));
-    if (!siteData.supporters || typeof siteData.supporters !== 'object') siteData.supporters = JSON.parse(JSON.stringify(INITIAL_DATA.supporters));
-    if (!siteData.supporters.title || typeof siteData.supporters.title !== 'object') siteData.supporters.title = JSON.parse(JSON.stringify(INITIAL_DATA.supporters.title));
-    if (!Array.isArray(siteData.supporters.sponsors)) siteData.supporters.sponsors = JSON.parse(JSON.stringify(INITIAL_DATA.supporters.sponsors));
-    if (!Array.isArray(siteData.supporters.artists)) siteData.supporters.artists = JSON.parse(JSON.stringify(INITIAL_DATA.supporters.artists));
-    if (!siteData.downloads || typeof siteData.downloads !== 'object') siteData.downloads = JSON.parse(JSON.stringify(INITIAL_DATA.downloads));
-    if (!siteData.downloads.title || typeof siteData.downloads.title !== 'object') siteData.downloads.title = JSON.parse(JSON.stringify(INITIAL_DATA.downloads.title));
-    if (!Array.isArray(siteData.downloads.items)) siteData.downloads.items = JSON.parse(JSON.stringify(INITIAL_DATA.downloads.items));
+    let siteData = JSON.parse(localStorage.getItem('drawme_data_v14')) || JSON.parse(JSON.stringify(INITIAL_DATA));
     // 補充左側動畫區域
-    if (!siteData.decoration.leftAnimation) {
+    if (!siteData.decoration?.leftAnimation) {
       siteData.decoration.leftAnimation = JSON.parse(JSON.stringify(INITIAL_DATA.decoration.leftAnimation));
     }
+    if (!siteData.decoration) siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
+    if (!siteData.settings) siteData.settings = JSON.parse(JSON.stringify(INITIAL_DATA.settings));
     // 補充 pageTitle / 分享文字 / favicon（含舊資料遷移）
     const OLD_DEFAULT_TITLE = 'RE:VIEW Taiwan - 重新觀看行動';
     const NEW_DEFAULT_TITLE = INITIAL_DATA.settings.pageTitle;
@@ -879,12 +837,12 @@
       }
     });
     // 舊版資料遷移：mainMedia -> mediaItems
-    if (siteData.hero.mainMedia && !Array.isArray(siteData.hero.mediaItems)) {
+    if (siteData.hero.mainMedia && !siteData.hero.mediaItems) {
       siteData.hero.mediaItems = [siteData.hero.mainMedia];
       siteData.hero.currentMediaIndex = 0;
       delete siteData.hero.mainMedia;
     }
-    if (!Array.isArray(siteData.hero.mediaItems)) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
+    if (!siteData.hero.mediaItems) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
     if (siteData.hero.currentMediaIndex === undefined) siteData.hero.currentMediaIndex = 0;
 
     // 文字元件：預設建立 mobile.content，確保桌機/手機「格式」可獨立編輯
