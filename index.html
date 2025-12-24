@@ -325,6 +325,45 @@
     @media (prefers-reduced-motion: reduce) {
       .floating-signup { animation: none !important; }
     }
+
+    /* 活動說明區塊（輪播下方） */
+    .event-info-box { position: relative; }
+    .event-info-fx-layer {
+      position: absolute;
+      inset: -6px;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: var(--event-fx-shadow, none);
+      opacity: 1;
+      will-change: opacity;
+      mix-blend-mode: screen;
+    }
+    .event-info-box-fx-neon .event-info-fx-layer {
+      animation: eventInfoNeonPulse var(--event-fx-speed, 4s) ease-in-out infinite;
+    }
+    .event-info-box-fx-flicker .event-info-fx-layer {
+      animation: eventInfoFlicker var(--event-fx-speed, 3s) infinite;
+    }
+    @keyframes eventInfoNeonPulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    @keyframes eventInfoFlicker {
+      0%, 100% { opacity: 1; }
+      6% { opacity: 0.85; }
+      7% { opacity: 1; }
+      18% { opacity: 0.6; }
+      19% { opacity: 1; }
+      44% { opacity: 0.72; }
+      45% { opacity: 1; }
+      62% { opacity: 0.88; }
+      63% { opacity: 1; }
+      78% { opacity: 0.8; }
+      79% { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .event-info-fx-layer { animation: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -502,6 +541,26 @@
       "bgOpacity": 100,
       "shadowColor": "#000000",
       "shadowOpacity": 80
+    },
+    "eventInfoBox": {
+      "borderColor": "#1a1a1a",
+      "borderWidth": 2,
+      "bgColor": "#ffffff",
+      "bgOpacity": 70,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0,
+      "maxWidth": 900,
+      "offsetX": 0,
+      "offsetY": 0,
+      "fxType": "neon",
+      "fxColor": "#00ffff",
+      "fxStrength": 60,
+      "fxSpeed": 4,
+      "fxFrequency": 1,
+      "mobile": {
+        "maxWidth": 340,
+        "bgOpacity": 85
+      }
     }
   },
   "instagramLink": "https://www.instagram.com/gg_dove/",
@@ -585,12 +644,26 @@
           "content": "https://duk.tw/o00drs.jpg"
         }
       }
-    ],
-    "currentMediaIndex": 4
-  },
-  "manifesto": {
-    "paragraphs": [
-      {
+     ],
+     "currentMediaIndex": 4,
+     "eventInfo": {
+       "id": "event-info",
+       "type": "richtext",
+       "content": "<div><b>【重新觀看行動】</b></div><div>將分為兩個部分</div><div><br></div><div>I． 12/28下午將進行藝術家快閃活動,將於台北車站廣場(黑白格子廣場)進行街頭似顏繪快閃活動,藝術家將街頭隨機繪製似顏繪贈與路人</div><div><br></div><div>II． 將於各個地點放置「Review徽章」提供索取,此徽章功能在於降低友善陌生互動的門檻,人們看到配戴此徽章的人時,可以放心與之交流互動,甚至為其繪製一張似顏繪/肖像.</div><div>（某種Ｅ人標籤）</div>",
+       "style": {
+         "fontSize": "text-xl",
+         "color": "#6c0404",
+         "rotation": 0,
+         "fontFamily": "ChenYuluoyan"
+       },
+       "mobile": {
+         "content": "<div><b>【重新觀看行動】</b></div><div>將分為兩個部分</div><div><br></div><div>I． 12/28下午將進行藝術家快閃活動,將於台北車站廣場(黑白格子廣場)進行街頭似顏繪快閃活動,藝術家將街頭隨機繪製似顏繪贈與路人</div><div><br></div><div>II． 將於各個地點放置「Review徽章」提供索取,此徽章功能在於降低友善陌生互動的門檻,人們看到配戴此徽章的人時,可以放心與之交流互動,甚至為其繪製一張似顏繪/肖像.</div><div>（某種Ｅ人標籤）</div>"
+       }
+     }
+   },
+   "manifesto": {
+     "paragraphs": [
+       {
         "id": "p1",
         "type": "richtext",
         "content": "<pre><font face=\"ChenYuluoyan\" size=\"6\">最近搭捷運時，你是否也感受到了一股緊繃的氛圍？\n看到台灣社會開始草木皆兵的狀態相當難受，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">也思考著藝術家的身份能夠做些什麼。\n曾看過許多藝術家在捷運、火車上為陌生人</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">繪製肖像速寫的影片，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">這種人與人溫暖互動的畫面</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">漸漸地越來越難看到。</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">人們總專注地盯著眼前的小螢幕，而忽略周遭。\n然而如今因北捷無差別攻擊事件，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">在相互提醒下大家雖開始放下手機觀察四周，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">但在恐懼的濾鏡下我們看到的彼此</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">卻是一個個潛在的敵人。\n我希望人們開始尋找的不是敵人，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">而是有趣的朋友、夥伴。\n如果藝術作為一種社會雕塑（Social Sculpture）</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">意味著我們能用行動去形塑社會的樣貌，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">我希望能雕塑一份「信任」。</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">我懷念那些畫家在車廂裡為陌生人速寫，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">最後送給對方驚喜的微笑。\n因此我決定發起【Re:View Taiwan重新觀看行動】\n我自費製作了首批 1,000 枚徽章，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">想邀請您在通勤時戴上它。 \n當人們視線相視到彼此的徽章時，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">會知道彼此是可以友善交流的對象，</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">甚至可以為對方繪製肖像速寫</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">而不會感到尷尬或奇怪。</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">這枚徽章是一張「友善的通行證」\n我期待可以用一個微笑、一句簡單的問候開啟對話。</font></pre><pre><font face=\"ChenYuluoyan\" size=\"6\">甚至是為你繪製一幅速寫肖像。\n\n這是一個整體社會關於「看見」的重新練習。\n我是GGdove 這是我對這個社會的一點點反擊。</font></pre>",
@@ -607,17 +680,17 @@
         "id": "p2",
         "type": "richtext",
         "content": "<br>",
-        "style": {
-          "fontSize": "text-xl",
-          "color": "#000000",
-          "rotation": 0.5
-        },
-        "mobile": {
-          "content": "<div><font size=\"6\" color=\"#6c0404\"><br></font></div><font size=\"6\" color=\"#6c0404\">【重新觀看行動｝】</font><div><span style=\"color: rgb(108, 4, 4); font-size: xx-large;\">將分為兩個部分</span></div><div><font color=\"#6c0404\" size=\"6\"><br></font><div><div><font size=\"6\" color=\"#6c0404\">I．&nbsp; 12/28下午將進行藝術家快閃活動,將於台北車站廣場(黑白格子廣場)進行街頭似顏繪快閃活動,藝術家將街頭隨機繪製似顏繪贈與路人</font></div><div><font size=\"6\" color=\"#6c0404\"><br></font></div><div><font size=\"6\" color=\"#6c0404\">II．&nbsp; 將於各個地點放置「Review徽章」提供索取,此徽章功能在於降低友善陌生互動的門檻,人們看到配戴此徽章的人時,可以放心與之交流互動,甚至為其繪製一張似顏繪/肖像.</font></div><div><font size=\"6\" color=\"#6c0404\">（某種Ｅ人標籤）</font></div></div></div>"
-        }
-      },
-      {
-        "id": "p3",
+       "style": {
+         "fontSize": "text-xl",
+         "color": "#000000",
+         "rotation": 0.5
+       },
+       "mobile": {
+         "content": "<br>"
+       }
+     },
+     {
+       "id": "p3",
         "type": "richtext",
         "content": "<br>",
         "style": {
@@ -935,7 +1008,7 @@
     }
     if (!siteData.boxStyles) siteData.boxStyles = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles));
     // 補充缺少的 shadowColor 和新區塊樣式
-    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox', 'eventInfoBox'].forEach(key => {
       if (!siteData.boxStyles[key]) {
         siteData.boxStyles[key] = JSON.parse(JSON.stringify(INITIAL_DATA.boxStyles[key]));
       } else if (!siteData.boxStyles[key].shadowColor) {
@@ -958,7 +1031,7 @@
       siteData.decoration.circleImage.style.opacity = 30;
     }
     // 補充 boxStyles 的透明度設定
-    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox'].forEach(key => {
+    ['mediaBox', 'manifestoBox', 'actionBox', 'locationsBox', 'supportersBox', 'footerBox', 'downloadsBox', 'eventInfoBox'].forEach(key => {
       if (siteData.boxStyles[key]) {
         if (siteData.boxStyles[key].bgOpacity === undefined) siteData.boxStyles[key].bgOpacity = 100;
         if (siteData.boxStyles[key].shadowOpacity === undefined) siteData.boxStyles[key].shadowOpacity = 80;
@@ -973,6 +1046,61 @@
     }
     if (!siteData.hero.mediaItems) siteData.hero.mediaItems = JSON.parse(JSON.stringify(INITIAL_DATA.hero.mediaItems));
     if (siteData.hero.currentMediaIndex === undefined) siteData.hero.currentMediaIndex = 0;
+
+    // 新增：輪播下方「活動說明」區塊（獨立於宣言）
+    if (!siteData.hero) siteData.hero = JSON.parse(JSON.stringify(INITIAL_DATA.hero));
+    if (!siteData.hero.eventInfo) siteData.hero.eventInfo = JSON.parse(JSON.stringify(INITIAL_DATA.hero.eventInfo));
+    // 舊資料遷移：若宣言中仍包含 I/II 活動段落，則搬移到 hero.eventInfo 並清空宣言該段，避免重複顯示
+    (function migrateEventInfoFromManifesto() {
+      const looseText = (html) => String(html || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const paragraphs = siteData?.manifesto?.paragraphs;
+      if (!Array.isArray(paragraphs)) return;
+
+      const looksLikeEventBlock = (text) => {
+        const t = String(text || '');
+        return (
+          /(I[．.])/.test(t) &&
+          /(II[．.])/.test(t) &&
+          t.includes('Review') &&
+          t.includes('徽章')
+        );
+      };
+
+      const idx = paragraphs.findIndex(p => {
+        if (!p || typeof p !== 'object') return false;
+        const html = (p.mobile && typeof p.mobile === 'object' && typeof p.mobile.content === 'string') ? p.mobile.content : p.content;
+        const t = looseText(html);
+        return looksLikeEventBlock(t);
+      });
+      if (idx < 0) return;
+
+      const p = paragraphs[idx];
+      const desktopHtml = (typeof p.content === 'string') ? p.content : '';
+      const mobileHtml = (p.mobile && typeof p.mobile === 'object' && typeof p.mobile.content === 'string') ? p.mobile.content : '';
+      const sourceHtml = looseText(mobileHtml) ? mobileHtml : desktopHtml;
+      if (!sourceHtml) return;
+
+      const eventEl = siteData.hero.eventInfo;
+      const defaultEventHtml = String(INITIAL_DATA?.hero?.eventInfo?.content || '');
+      const currentEventHtml = String(eventEl?.content || '');
+      const shouldOverwriteEvent = (!looseText(currentEventHtml)) || currentEventHtml === defaultEventHtml;
+      if (eventEl && shouldOverwriteEvent) {
+        eventEl.content = sourceHtml;
+        if (!eventEl.mobile || typeof eventEl.mobile !== 'object') eventEl.mobile = {};
+        eventEl.mobile.content = sourceHtml;
+      }
+
+      p.content = '<br>';
+      if (!p.mobile || typeof p.mobile !== 'object') p.mobile = {};
+      p.mobile.content = '<br>';
+    })();
 
     // 文字元件：預設建立 mobile.content，確保桌機/手機「格式」可獨立編輯
     function ensureTextElementsMobileContent(node) {
@@ -1383,13 +1511,39 @@
       return fallback;
     }
 
-    // 顏色轉換：hex + opacity -> rgba
-    function hexToRgba(hex, opacity) {
-      const h = hex.replace('#', '');
-      const r = parseInt(h.substring(0, 2), 16);
-      const g = parseInt(h.substring(2, 4), 16);
-      const b = parseInt(h.substring(4, 6), 16);
-      return 'rgba(' + r + ',' + g + ',' + b + ',' + (opacity / 100) + ')';
+    // 顏色轉換：hex/rgb/rgba + opacity -> rgba（相容舊資料）
+    function hexToRgba(color, opacity) {
+      const o = clampNumber(opacity, 0, 100, 100);
+      const a = o / 100;
+      const v = String(color || '').trim();
+
+      const rgba = v.match(/^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+)\s*)?\)$/i);
+      if (rgba) {
+        const r = clampNumber(rgba[1], 0, 255, 0);
+        const g = clampNumber(rgba[2], 0, 255, 0);
+        const b = clampNumber(rgba[3], 0, 255, 0);
+        return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+      }
+
+      const hex6 = v.match(/^#?([0-9a-fA-F]{6})$/);
+      if (hex6) {
+        const h = hex6[1];
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+      }
+
+      const hex3 = v.match(/^#?([0-9a-fA-F]{3})$/);
+      if (hex3) {
+        const h = hex3[1];
+        const r = parseInt(h[0] + h[0], 16);
+        const g = parseInt(h[1] + h[1], 16);
+        const b = parseInt(h[2] + h[2], 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+      }
+
+      return 'rgba(0,0,0,' + a + ')';
     }
 
     function applyStyles() {
@@ -2233,6 +2387,9 @@
       if (rotateDeg) transforms.push(`rotate(${rotateDeg}deg)`);
       const transformStyle = transforms.length ? `transform: ${transforms.join(' ')};` : '';
       const color = viewEl.style?.color ? `color: ${viewEl.style.color};` : '';
+      const fontFamilyId = String(viewEl.style?.fontFamily || '').trim();
+      const safeFontFamilyId = AVAILABLE_FONTS.some(f => f.id === fontFamilyId) ? fontFamilyId : '';
+      const fontFamilyStyle = safeFontFamilyId ? `font-family:'${safeFontFamilyId}', 'ChenYuluoyan', sans-serif;` : '';
       const onClick = isAdmin ? `onclick="event.stopPropagation();selectElement('${el.id}')"` : '';
 
       if (viewEl.type === 'media') return renderMedia(viewEl, extraClass);
@@ -2275,7 +2432,7 @@
       }
       const fontSizeStyle = viewEl.style?.fontSizePx ? `font-size:${viewEl.style.fontSizePx}px;` : '';
       const fontSizeClass = !viewEl.style?.fontSizePx && viewEl.style?.fontSize ? viewEl.style.fontSize : '';
-      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle} ${color} ${fontSizeStyle}" ${onClick}>${viewEl.content}</div>`;
+      return `<div class="${fontSizeClass} ${adminClass} ${activeClass} ${extraClass}" style="${transformStyle} ${color} ${fontSizeStyle} ${fontFamilyStyle}" ${onClick}>${viewEl.content}</div>`;
     }
 
     function renderSidebar() {
@@ -3146,6 +3303,7 @@
       const viewEl = getResponsiveElement(el);
       const isDecoCircle = el.id === 'deco-circle';
       const isHeroTitle = el.id === 'hero-title';
+      const isEventInfo = el.id === 'event-info';
       const circleDefaultPosMode = getActiveDevice() === 'mobile' ? 'absolute' : 'fixed';
       const circlePosMode = viewEl.positionMode || circleDefaultPosMode;
       const circleAnchorX = viewEl.anchorX || 'right';
@@ -3176,6 +3334,20 @@
       const isMedia = el.type === 'media' || el.id === 'hero-media';
       const isImage = el.type === 'image';
       const isText = el.type === 'richtext' || el.type === 'text';
+
+      const eventBox = getBoxStyle('eventInfoBox');
+      const eventBoxOffsetX = parseFloat(eventBox.offsetX) || 0;
+      const eventBoxOffsetY = parseFloat(eventBox.offsetY) || 0;
+      const eventBoxFxType = String(eventBox.fxType || 'none'); // none | neon | flicker
+      const eventBoxFxColor = normalizeHexColor(eventBox.fxColor, '#00ffff');
+      const eventBoxFxStrength = clampNumber(eventBox.fxStrength, 0, 100, 60);
+      const eventBoxFxSpeed = clampNumber(eventBox.fxSpeed, 0.5, 20, 4);
+      const eventBoxFxFrequency = clampNumber(eventBox.fxFrequency, 1, 10, 1);
+      const eventBoxFontFamily = String(viewEl.style?.fontFamily || '');
+      const eventBoxFontOptions = [
+        `<option value="" ${!eventBoxFontFamily ? 'selected' : ''}>跟隨全站</option>`,
+        ...AVAILABLE_FONTS.map(f => `<option value="${f.id}" ${eventBoxFontFamily === f.id ? 'selected' : ''}>${f.name}</option>`)
+      ].join('');
 
       return `
         <div class="sidebar open">
@@ -3346,6 +3518,109 @@
               <label class="block text-sm font-bold mb-2">旋轉角度: ${viewEl.style?.rotation || 0}°</label>
               <input type="range" min="-10" max="10" step="0.5" value="${viewEl.style?.rotation || 0}" class="w-full" onchange="updateElement('${el.id}', {style: {rotation: parseFloat(this.value)}})">
             </div>
+            ${isEventInfo ? `
+              <div class="border-t pt-4 mt-4">
+                <div class="text-sm font-bold mb-3">活動說明區塊（輪播下方）</div>
+
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs font-bold">字型（整段）</label>
+                    <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateElement('${el.id}', {style: {fontFamily: this.value}})">
+                      ${eventBoxFontOptions}
+                    </select>
+                  </div>
+
+                  <div class="border-t pt-3">
+                    <div class="text-xs font-bold mb-2">區塊位置（背景框一起移動）</div>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="text-xs">水平偏移 X: ${eventBoxOffsetX}px</label>
+                        <input type="range" min="-600" max="600" value="${eventBoxOffsetX}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {offsetX: parseInt(this.value)||0})">
+                      </div>
+                      <div>
+                        <label class="text-xs">垂直偏移 Y: ${eventBoxOffsetY}px</label>
+                        <input type="range" min="-800" max="800" value="${eventBoxOffsetY}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {offsetY: parseInt(this.value)||0})">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="border-t pt-3">
+                    <div class="text-xs font-bold mb-2">背景 / 框線</div>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="text-xs">框線顏色</label>
+                        <input type="color" value="${eventBox.borderColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('eventInfoBox', {borderColor: this.value})">
+                      </div>
+                      <div>
+                        <label class="text-xs">框線粗細: ${eventBox.borderWidth || 2}px</label>
+                        <input type="range" min="0" max="10" value="${eventBox.borderWidth || 2}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {borderWidth: parseInt(this.value)})">
+                      </div>
+                      <div>
+                        <label class="text-xs">背景顏色</label>
+                        <input type="color" value="${eventBox.bgColor || '#ffffff'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('eventInfoBox', {bgColor: this.value})">
+                      </div>
+                      <div>
+                        <label class="text-xs">背景透明度: ${eventBox.bgOpacity ?? 70}%</label>
+                        <input type="range" min="0" max="100" value="${eventBox.bgOpacity ?? 70}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {bgOpacity: parseInt(this.value)})">
+                      </div>
+                      <div>
+                        <label class="text-xs">外陰影顏色</label>
+                        <input type="color" value="${eventBox.shadowColor || '#000000'}" class="w-full h-8 cursor-pointer" onchange="updateBoxStyle('eventInfoBox', {shadowColor: this.value})">
+                      </div>
+                      <div>
+                        <label class="text-xs">外陰影透明度: ${eventBox.shadowOpacity ?? 0}%</label>
+                        <input type="range" min="0" max="100" value="${eventBox.shadowOpacity ?? 0}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {shadowOpacity: parseInt(this.value)})">
+                      </div>
+                      <div>
+                        <label class="text-xs">最大寬度: ${eventBox.maxWidth || 0}px (0=滿版)</label>
+                        <input type="range" min="0" max="1200" value="${eventBox.maxWidth || 0}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {maxWidth: parseInt(this.value)})">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="border-t pt-3">
+                    <div class="text-xs font-bold mb-2">背景特效（霓虹 / 閃動）</div>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="text-xs font-bold">特效類型</label>
+                        <select class="w-full p-2 border border-gray-300 rounded text-sm mt-1" onchange="updateBoxStyle('eventInfoBox', {fxType: this.value})">
+                          <option value="none" ${eventBoxFxType === 'none' ? 'selected' : ''}>無</option>
+                          <option value="neon" ${eventBoxFxType === 'neon' ? 'selected' : ''}>霓虹（呼吸）</option>
+                          <option value="flicker" ${eventBoxFxType === 'flicker' ? 'selected' : ''}>閃動（flicker）</option>
+                        </select>
+                      </div>
+
+                      ${eventBoxFxType !== 'none' ? `
+                        <div>
+                          <label class="text-xs font-bold">發光顏色</label>
+                          <div class="flex gap-2 items-center mt-1">
+                            <input type="color" value="${eventBoxFxColor}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded" onchange="updateBoxStyle('eventInfoBox', {fxColor: this.value})">
+                            <input type="text" value="${eventBoxFxColor}" class="flex-1 p-2 border border-gray-300 rounded text-sm" onchange="updateBoxStyle('eventInfoBox', {fxColor: this.value})">
+                          </div>
+                        </div>
+                        <div>
+                          <label class="text-xs font-bold">發光強度: ${eventBoxFxStrength}</label>
+                          <input type="range" min="0" max="100" value="${eventBoxFxStrength}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {fxStrength: parseInt(this.value)})">
+                        </div>
+                        <div>
+                          <label class="text-xs font-bold">時間（秒）: ${eventBoxFxSpeed}s</label>
+                          <input type="range" min="0.5" max="20" step="0.5" value="${eventBoxFxSpeed}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {fxSpeed: parseFloat(this.value)})">
+                        </div>
+                        <div>
+                          <label class="text-xs font-bold">頻率倍率: ×${eventBoxFxFrequency}</label>
+                          <input type="range" min="1" max="10" step="1" value="${eventBoxFxFrequency}" class="w-full" onchange="updateBoxStyle('eventInfoBox', {fxFrequency: parseInt(this.value)})">
+                          <p class="text-[11px] text-gray-500 mt-1">同樣時間內閃動/呼吸次數倍率（越大越頻繁）。</p>
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+
+                  ${(getActiveDevice() === 'mobile' && siteData.boxStyles?.eventInfoBox?.mobile) ? `
+                    <button onclick="clearBoxStyleMobileOverrides('eventInfoBox')" class="w-full py-2 border-2 border-black rounded hover:bg-gray-100 text-sm">清除手機版覆寫</button>
+                  ` : ''}
+                </div>
+              </div>
+            ` : ''}
             ${isHeroTitle ? `
               <div class="border-t pt-4 mt-4">
                 <div class="text-sm font-bold mb-3">主標題位置 (X / Y)</div>
@@ -3789,6 +4064,57 @@
               <div id="hero-carousel-slot">
                 ${renderCarousel()}
               </div>
+              ${(() => {
+                const infoEl = d.hero?.eventInfo;
+                if (!infoEl) return '';
+
+                const eb = getBoxStyle('eventInfoBox');
+                const bg = hexToRgba(eb.bgColor || '#ffffff', eb.bgOpacity ?? 70);
+                const baseShadow = 'box-shadow: 6px 6px 0px 0px ' + hexToRgba(eb.shadowColor || '#000000', eb.shadowOpacity ?? 0) + ';';
+                const borderStyle = `border: ${eb.borderWidth || 2}px solid ${eb.borderColor || '#000000'};`;
+                const maxWidthStyle = eb.maxWidth ? `max-width: ${eb.maxWidth}px;` : '';
+
+                const offsetX = parseFloat(eb.offsetX) || 0;
+                const offsetY = parseFloat(eb.offsetY) || 0;
+                const transformStyle = (offsetX || offsetY) ? `transform: translate(${offsetX}px, ${offsetY}px);` : '';
+
+                const fxType = String(eb.fxType || 'none'); // none | neon | flicker
+                const fxColor = normalizeHexColor(eb.fxColor, '#00ffff');
+                const fxStrength = clampNumber(eb.fxStrength, 0, 100, 60);
+                const fxSpeed = clampNumber(eb.fxSpeed, 0.5, 20, 4);
+                const fxFrequency = clampNumber(eb.fxFrequency, 1, 10, 1);
+                const fxDuration = Math.max(0.2, fxSpeed / fxFrequency);
+
+                const glow1 = Math.round(4 + fxStrength * 0.14);
+                const glow2 = Math.round(12 + fxStrength * 0.28);
+                const glow3 = Math.round(24 + fxStrength * 0.55);
+                const fxShadow =
+                  `0 0 ${glow1}px ${hexToRgba(fxColor, 85)},` +
+                  ` 0 0 ${glow2}px ${hexToRgba(fxColor, 55)},` +
+                  ` 0 0 ${glow3}px ${hexToRgba(fxColor, 35)}`;
+                const fxClass =
+                  fxType === 'neon' ? 'event-info-box-fx-neon'
+                  : fxType === 'flicker' ? 'event-info-box-fx-flicker'
+                  : '';
+                const fxLayer =
+                  fxType !== 'none'
+                    ? `<div class="event-info-fx-layer" style="--event-fx-speed:${fxDuration}s; --event-fx-shadow:${fxShadow};"></div>`
+                    : '';
+
+                return `
+                  <div class="mt-10 flex justify-center">
+                    <div
+                      class="event-info-box ${fxClass} w-full ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'event-info' ? 'ring-4 ring-pink-500' : ''}"
+                      style="background: ${bg}; ${borderStyle} border-radius: 28px; ${baseShadow} ${maxWidthStyle} ${transformStyle}"
+                      ${isAdmin ? "onclick=\"selectElement('event-info')\"" : ''}>
+                      ${fxLayer}
+                      <div class="relative z-10 p-8">
+                        ${renderElement(infoEl)}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              })()}
             </div>
 
             ${(() => {
