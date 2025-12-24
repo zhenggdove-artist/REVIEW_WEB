@@ -854,6 +854,26 @@
           if (p.mobile && typeof p.mobile === 'object' && typeof p.mobile.content === 'string') {
             p.mobile.content = fixHtml(p.mobile.content);
           }
+
+          // 修正：若桌機/手機其中一邊內容幾乎為空（例如只有 <br>），則以另一邊內容補齊（避免只在單一裝置顯示）
+          const desktopHtml = (typeof p.content === 'string') ? p.content : '';
+          const mobileHtml = (p.mobile && typeof p.mobile === 'object' && typeof p.mobile.content === 'string') ? p.mobile.content : '';
+          const looseText = (html) => String(html || '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/\u00a0/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          const desktopText = looseText(desktopHtml);
+          const mobileText = looseText(mobileHtml);
+
+          if (!desktopText && mobileText) {
+            p.content = mobileHtml;
+          } else if (!mobileText && desktopText) {
+            if (!p.mobile || typeof p.mobile !== 'object') p.mobile = {};
+            p.mobile.content = desktopHtml;
+          }
         });
       }
     }
@@ -3554,6 +3574,19 @@
       return out.join('');
     }
 
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function plainTextToSimpleHtml(text) {
+      return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
     const TEXT_SYNC_SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT']);
     function isInsideSkippedTag(node) {
       let cur = node && node.parentNode;
@@ -3576,9 +3609,8 @@
         n = walker.nextNode();
       }
 
-      if (!nodes.length) return String(html || '');
-
       const nextText = String(plainText || '');
+      if (!nodes.length) return plainTextToSimpleHtml(nextText);
       if (nodes.length === 1) {
         nodes[0].nodeValue = nextText;
         return template.innerHTML;
