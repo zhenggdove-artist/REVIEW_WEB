@@ -302,7 +302,7 @@
     ];
 
     // ============ 初始數據 ============
-    const INITIAL_DATA = {
+    _DATA = {
   "settings": {
     "englishFont": "ChenYuluoyan",
     "cursorSize": 70,
@@ -1986,7 +1986,7 @@
     function copyDataToClipboard() {
       const dataStr = JSON.stringify(siteData, null, 2);
       navigator.clipboard.writeText(dataStr).then(() => {
-        alert('設定已複製到剪貼板！\n\n更新網站步驟：\n1. 用文字編輯器打開 index.html\n2. 找到 const INITIAL_DATA = {...};\n3. 用複製的內容替換 {...} 部分\n4. 儲存檔案\n5. git add . && git commit -m "更新內容" && git push');
+        alert('設定已複製到剪貼板！\n\n更新網站步驟：\n1. 用文字編輯器打開 index.html\n2. 找到 _DATA = {...};\n3. 用複製的內容替換 {...} 部分\n4. 儲存檔案\n5. git add . && git commit -m "更新內容" && git push');
       });
     }
 
