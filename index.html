@@ -421,6 +421,10 @@
       "posX": 16,
       "posY": 180,
       "fontSize": 22,
+      "style": {
+        "textColor": "#00ffff",
+        "glowColor": "#00ffff"
+      },
       "mobile": {
         "posX": 10,
         "posY": 140,
@@ -1316,6 +1320,12 @@
       saveData();
     }
 
+    function normalizeHexColor(value, fallback) {
+      const v = String(value || '').trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+      return fallback;
+    }
+
     // 顏色轉換：hex + opacity -> rgba
     function hexToRgba(hex, opacity) {
       const h = hex.replace('#', '');
@@ -1576,7 +1586,8 @@
           url: '',
           posX: 16,
           posY: 180,
-          fontSize: 22
+          fontSize: 22,
+          style: { textColor: '#00ffff', glowColor: '#00ffff' }
         }));
       }
 
@@ -1591,6 +1602,16 @@
       }
 
       saveData();
+    }
+
+    function setFloatingSignupColor(field, value) {
+      if (field !== 'textColor' && field !== 'glowColor') return;
+      const el = findElement('floating-signup');
+      if (!el) return;
+      const view = getResponsiveElement(el);
+      const current = normalizeHexColor(view?.style?.[field], '#00ffff');
+      const next = normalizeHexColor(value, current);
+      updateElement('floating-signup', { style: { [field]: next } });
     }
 
     // ============ 輪播功能 ============
@@ -2923,6 +2944,8 @@
         const posX = fs.posX ?? 16;
         const posY = fs.posY ?? 180;
         const fontSize = fs.fontSize ?? 22;
+        const textColor = normalizeHexColor(fs.style?.textColor, '#00ffff');
+        const glowColor = normalizeHexColor(fs.style?.glowColor, textColor);
         const shared = siteData.decoration?.floatingSignup || fsBase || {};
         const text = shared.text ?? '快閃活動報名';
         const url = shared.url ?? '';
@@ -2962,6 +2985,26 @@
               </div>
 
               <div class="border-b pb-4">
+                <h4 class="font-bold mb-2 text-sm">顏色/霓虹（依目前裝置分開儲存）</h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs">文字顏色</label>
+                    <div class="flex gap-2 items-center">
+                      <input type="color" value="${textColor}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded" onchange="setFloatingSignupColor('textColor', this.value)">
+                      <input type="text" value="${textColor}" class="flex-1 p-2 border border-gray-300 rounded text-sm" onchange="setFloatingSignupColor('textColor', this.value)">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-xs">閃動光的顏色</label>
+                    <div class="flex gap-2 items-center">
+                      <input type="color" value="${glowColor}" class="w-12 h-10 cursor-pointer border border-gray-300 rounded" onchange="setFloatingSignupColor('glowColor', this.value)">
+                      <input type="text" value="${glowColor}" class="flex-1 p-2 border border-gray-300 rounded text-sm" onchange="setFloatingSignupColor('glowColor', this.value)">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border-b pb-4">
                 <h4 class="font-bold mb-2 text-sm">位置/字體大小（依目前裝置分開儲存）</h4>
                 <div class="space-y-3">
                   <div>
@@ -2980,7 +3023,7 @@
               </div>
 
               <div class="p-3 bg-blue-50 border border-blue-300 rounded text-xs">
-                <strong>提示：</strong>位置/字體大小會依「桌機/手機」分開儲存，兩邊互不影響；文字與連結為共用。
+                <strong>提示：</strong>位置/字體大小/顏色會依「桌機/手機」分開儲存，兩邊互不影響；文字與連結為共用。
               </div>
 
               ${(getActiveDevice() === 'mobile' && siteData.decoration?.floatingSignup?.mobile) ? `
@@ -3934,6 +3977,13 @@
             const fontSize = fs.fontSize ?? 22;
             const text = String(fs.text || '快閃活動報名');
             const url = String(fs.url || '').trim();
+            const textColor = normalizeHexColor(fs.style?.textColor, '#00ffff');
+            const glowColor = normalizeHexColor(fs.style?.glowColor, textColor);
+            const glowShadow =
+              `0 0 6px ${hexToRgba(glowColor, 90)},` +
+              ` 0 0 18px ${hexToRgba(glowColor, 75)},` +
+              ` 0 0 36px ${hexToRgba(glowColor, 55)},` +
+              ` 0 0 54px ${hexToRgba(glowColor, 35)}`;
 
             const tag = url ? 'a' : 'div';
             const hrefAttrs = url ? `href="${url}" target="_blank" rel="noopener noreferrer"` : '';
@@ -3943,7 +3993,7 @@
             return `
               <${tag}
                 class="floating-signup ${disabledClass} ${isAdmin ? 'admin-highlight cursor-pointer' : ''} ${activeElementId === 'floating-signup' ? 'ring-4 ring-pink-500' : ''}"
-                style="left:${posX}px; top:${posY}px; font-size:${fontSize}px;"
+                style="left:${posX}px; top:${posY}px; font-size:${fontSize}px; color:${textColor}; text-shadow:${glowShadow};"
                 ${hrefAttrs}
                 ${onClickAttrs}
               >${text}</${tag}>
