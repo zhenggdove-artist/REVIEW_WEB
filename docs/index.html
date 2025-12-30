@@ -129,7 +129,7 @@
       .fl-add-btn {
         position: fixed;
         top: 24px;
-        left: 180px;
+        right: 24px;
         z-index: 2100;
         background: #FF00A0;
         color: white;
@@ -139,10 +139,8 @@
         font-weight: bold;
         cursor: pointer;
         box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
-        display: none;
       }
       .fl-add-btn:hover { background: #E0008A; }
-      .admin-mode-active .fl-add-btn { display: block; }
     </style>
 
     <script type="importmap">
@@ -167,36 +165,12 @@
       const STORAGE_KEY = 'floating_labels_v1';
       let labels = [];
       let activeId = null;
-      let isAdmin = false;
 
       // 初始化
       function init() {
         loadLabels();
         renderLabels();
-        setupAdminObserver();
         document.getElementById('fl-add-btn').addEventListener('click', addLabel);
-      }
-
-      // 監聽 admin 模式
-      function setupAdminObserver() {
-        const observer = new MutationObserver(() => {
-          const root = document.querySelector('.min-h-screen');
-          isAdmin = root && root.classList.contains('admin-mode-active');
-          renderLabels();
-          if (!isAdmin) closePanel();
-        });
-        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-
-        // 定期檢查
-        setInterval(() => {
-          const root = document.querySelector('.min-h-screen');
-          const newAdmin = root && root.classList.contains('admin-mode-active');
-          if (newAdmin !== isAdmin) {
-            isAdmin = newAdmin;
-            renderLabels();
-            if (!isAdmin) closePanel();
-          }
-        }, 500);
       }
 
       // 讀取資料
@@ -264,7 +238,7 @@
         // 綁定點擊事件
         container.querySelectorAll('.floating-label').forEach(el => {
           el.addEventListener('click', () => {
-            if (isAdmin) openPanel(el.dataset.id);
+            openPanel(el.dataset.id);
           });
         });
       }
