@@ -1,5 +1,19 @@
 
-import { SiteData } from './types';
+import { SiteData, FloatingLabel } from './types';
+
+// 預設浮動標籤
+export const DEFAULT_FLOATING_LABEL: FloatingLabel = {
+  id: '',
+  content: '新標籤',
+  style: {
+    fontSize: 'text-sm',
+    color: '#FFFFFF',
+    backgroundColor: '#FF00A0',
+    rotation: 0,
+    top: 50,
+    writingMode: 'vertical'
+  }
+};
 
 export const INITIAL_DATA: SiteData = {
   hero: {
@@ -79,5 +93,19 @@ export const INITIAL_DATA: SiteData = {
       content: '12/28 週日 台北車站快閃行動，聯絡 GGdove 參與。',
       style: { fontSize: 'text-lg', color: '#FFFFFF', rotation: 0, textAlign: 'center', xOffset: 0, yOffset: 0 }
     }
-  }
+  },
+  floatingLabels: [
+    {
+      id: 'float-1',
+      content: '溫柔視線行動',
+      style: {
+        fontSize: 'text-sm',
+        color: '#FFFFFF',
+        backgroundColor: '#FF00A0',
+        rotation: 0,
+        top: 30,
+        writingMode: 'vertical'
+      }
+    }
+  ]
 };

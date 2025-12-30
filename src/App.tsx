@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { INITIAL_DATA } from './constants';
-import { SiteData, SiteElement } from './types';
+import { INITIAL_DATA, DEFAULT_FLOATING_LABEL } from './constants';
+import { SiteData, SiteElement, FloatingLabel } from './types';
 import EditableElement from './components/EditableElement';
 import SettingsSidebar from './components/SettingsSidebar';
 
@@ -11,6 +11,7 @@ const App: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [password, setPassword] = useState('');
   const [activeElementId, setActiveElementId] = useState<string | null>(null);
+  const [activeFloatingLabelId, setActiveFloatingLabelId] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('drawme_data_v3');
@@ -51,6 +52,40 @@ const App: React.FC = () => {
     }
   };
 
+  // 浮動標籤管理函數
+  const addFloatingLabel = () => {
+    const newLabel: FloatingLabel = {
+      ...DEFAULT_FLOATING_LABEL,
+      id: `float-${Date.now()}`,
+    };
+    const newData = {
+      ...data,
+      floatingLabels: [...(data.floatingLabels || []), newLabel]
+    };
+    saveToLocal(newData);
+    setActiveFloatingLabelId(newLabel.id);
+    setActiveElementId(null);
+  };
+
+  const updateFloatingLabel = (id: string, updates: Partial<FloatingLabel>) => {
+    const newLabels = (data.floatingLabels || []).map(label =>
+      label.id === id ? { ...label, ...updates } : label
+    );
+    const newData = { ...data, floatingLabels: newLabels };
+    saveToLocal(newData);
+  };
+
+  const deleteFloatingLabel = (id: string) => {
+    const newLabels = (data.floatingLabels || []).filter(label => label.id !== id);
+    const newData = { ...data, floatingLabels: newLabels };
+    saveToLocal(newData);
+    setActiveFloatingLabelId(null);
+  };
+
+  const findFloatingLabelById = (id: string): FloatingLabel | null => {
+    return (data.floatingLabels || []).find(label => label.id === id) || null;
+  };
+
   const findElementById = (id: string): SiteElement | null => {
     let found: SiteElement | null = null;
     const search = (obj: any) => {
@@ -77,12 +112,20 @@ const App: React.FC = () => {
             🖍 後台管理
           </button>
         ) : (
-          <button 
-            onClick={() => { setIsAdmin(false); setActiveElementId(null); }}
-            className="bg-black text-white px-6 py-2 rounded-full sketch-shadow font-bold hover:bg-gray-800 transition-colors"
-          >
-            退出編輯
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={addFloatingLabel}
+              className="bg-pink-500 text-white px-4 py-2 rounded-full sketch-shadow font-bold hover:bg-pink-600 transition-colors text-sm"
+            >
+              + 浮動標籤
+            </button>
+            <button
+              onClick={() => { setIsAdmin(false); setActiveElementId(null); setActiveFloatingLabelId(null); }}
+              className="bg-black text-white px-6 py-2 rounded-full sketch-shadow font-bold hover:bg-gray-800 transition-colors"
+            >
+              退出編輯
+            </button>
+          </div>
         )}
       </div>
 
@@ -126,12 +169,50 @@ const App: React.FC = () => {
 
       {/* Wix 側欄設定 */}
       {isAdmin && activeElementId && (
-        <SettingsSidebar 
-          element={findElementById(activeElementId)} 
-          onUpdate={handleUpdate} 
+        <SettingsSidebar
+          element={findElementById(activeElementId)}
+          onUpdate={handleUpdate}
           onClose={() => setActiveElementId(null)}
         />
       )}
+
+      {/* 浮動標籤側欄設定 */}
+      {isAdmin && activeFloatingLabelId && (
+        <SettingsSidebar
+          floatingLabel={findFloatingLabelById(activeFloatingLabelId)}
+          onUpdateFloatingLabel={updateFloatingLabel}
+          onDeleteFloatingLabel={deleteFloatingLabel}
+          onClose={() => setActiveFloatingLabelId(null)}
+        />
+      )}
+
+      {/* 浮動標籤渲染 */}
+      {(data.floatingLabels || []).map(label => (
+        <div
+          key={label.id}
+          onClick={() => {
+            if (isAdmin) {
+              setActiveFloatingLabelId(label.id);
+              setActiveElementId(null);
+            }
+          }}
+          className={`fixed left-0 z-[1000] cursor-pointer transition-all ${
+            isAdmin ? 'hover:scale-105' : ''
+          } ${activeFloatingLabelId === label.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+          style={{
+            top: `${label.style.top}%`,
+            transform: `rotate(${label.style.rotation}deg)`,
+            writingMode: label.style.writingMode === 'vertical' ? 'vertical-rl' : 'horizontal-tb',
+            backgroundColor: label.style.backgroundColor,
+            color: label.style.color,
+            padding: '12px 8px',
+            borderRadius: '0 8px 8px 0',
+            boxShadow: '4px 4px 0px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span className={label.style.fontSize}>{label.content}</span>
+        </div>
+      ))}
 
       {/* 主要內容區 */}
       <main className="content-area max-w-4xl mx-auto py-24 px-8">

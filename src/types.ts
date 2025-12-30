@@ -15,6 +15,22 @@ export interface SiteElement {
   style: EditableStyle;
 }
 
+// 浮動標籤專用樣式
+export interface FloatingLabelStyle {
+  fontSize: string;
+  color: string;
+  backgroundColor: string;
+  rotation: number;
+  top: number;      // 距離頂部的百分比 (0-100)
+  writingMode: 'horizontal' | 'vertical';  // 文字方向
+}
+
+export interface FloatingLabel {
+  id: string;
+  content: string;
+  style: FloatingLabelStyle;
+}
+
 export interface SiteData {
   hero: {
     title: SiteElement;
@@ -31,4 +47,5 @@ export interface SiteData {
   footer: {
     contact: SiteElement;
   };
+  floatingLabels: FloatingLabel[];
 }
