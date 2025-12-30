@@ -326,6 +326,21 @@
       .floating-signup { animation: none !important; }
     }
 
+    /* 自訂浮動標籤 */
+    .floating-label-item {
+      position: fixed;
+      left: 0;
+      z-index: 59;
+      padding: 12px 10px;
+      border-radius: 0 12px 12px 0;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: transform 0.2s, filter 0.2s;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+    }
+    .floating-label-item:hover { filter: brightness(1.1); transform: scale(1.05); }
+
     /* 活動說明區塊（輪播下方） */
     .event-info-box { position: relative; }
     .event-info-fx-layer {
@@ -472,7 +487,8 @@
         "textColor": "#008fd6",
         "glowColor": "#00ffcc"
       }
-    }
+    },
+    "floatingLabels": []
   },
   "boxStyles": {
     "mediaBox": {
@@ -1922,6 +1938,54 @@
       updateElement('floating-signup', { style: { [field]: next } });
     }
 
+    // ============ 浮動標籤管理 ============
+    function getFloatingLabels() {
+      if (!siteData.decoration) siteData.decoration = {};
+      if (!Array.isArray(siteData.decoration.floatingLabels)) siteData.decoration.floatingLabels = [];
+      return siteData.decoration.floatingLabels;
+    }
+
+    function addFloatingLabel() {
+      const labels = getFloatingLabels();
+      const newLabel = {
+        id: 'fl-' + Date.now(),
+        text: '新標籤',
+        bgColor: '#FF00A0',
+        textColor: '#FFFFFF',
+        fontSize: 16,
+        posY: 200 + labels.length * 80,
+        rotation: 0,
+        vertical: true
+      };
+      labels.push(newLabel);
+      saveData();
+      selectElement(newLabel.id);
+    }
+
+    function updateFloatingLabel(id, updates) {
+      const labels = getFloatingLabels();
+      const idx = labels.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        Object.assign(labels[idx], updates);
+        saveData();
+      }
+    }
+
+    function deleteFloatingLabel(id) {
+      if (!confirm('確定要刪除這個浮動標籤嗎？')) return;
+      const labels = getFloatingLabels();
+      const idx = labels.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        labels.splice(idx, 1);
+        saveData();
+        activeElementId = null;
+      }
+    }
+
+    function getFloatingLabelById(id) {
+      return getFloatingLabels().find(l => l.id === id) || null;
+    }
+
     // ============ 輪播功能 ============
     const CAROUSEL_AUTO_INTERVAL_MS = 5000;
     const CAROUSEL_FADE_MS = 350;
@@ -3369,6 +3433,74 @@
         `;
       }
 
+      // 自訂浮動標籤編輯
+      if (activeElementId && activeElementId.startsWith('fl-')) {
+        const label = getFloatingLabelById(activeElementId);
+        if (label) {
+          return `
+            <div class="sidebar open">
+              <div class="p-4 border-b-2 border-black flex justify-between items-center bg-pink-50">
+                <h3 class="text-lg font-bold">浮動標籤設定</h3>
+                <button onclick="activeElementId=null;render();" class="text-2xl hover:text-pink-500">&times;</button>
+              </div>
+              <div class="p-4 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label class="block text-sm font-bold mb-2">標籤文字</label>
+                  <input type="text" value="${label.text || ''}" class="w-full p-2 border-2 border-black rounded"
+                         onchange="updateFloatingLabel('${label.id}', {text: this.value})">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-bold mb-1">文字顏色</label>
+                    <input type="color" value="${label.textColor || '#FFFFFF'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
+                           onchange="updateFloatingLabel('${label.id}', {textColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold mb-1">背景顏色</label>
+                    <input type="color" value="${label.bgColor || '#FF00A0'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
+                           onchange="updateFloatingLabel('${label.id}', {bgColor: this.value})">
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">字體大小: ${label.fontSize || 16}px</label>
+                  <input type="range" min="10" max="40" value="${label.fontSize || 16}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {fontSize: parseInt(this.value)})">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">垂直位置: ${label.posY || 200}px</label>
+                  <input type="range" min="50" max="800" value="${label.posY || 200}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {posY: parseInt(this.value)})">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">旋轉角度: ${label.rotation || 0}°</label>
+                  <input type="range" min="-45" max="45" value="${label.rotation || 0}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {rotation: parseInt(this.value)})">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-2">文字方向</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button onclick="updateFloatingLabel('${label.id}', {vertical: true})"
+                            class="py-2 border-2 border-black rounded font-bold ${label.vertical !== false ? 'bg-pink-500 text-white' : 'hover:bg-gray-100'}">↕ 直書</button>
+                    <button onclick="updateFloatingLabel('${label.id}', {vertical: false})"
+                            class="py-2 border-2 border-black rounded font-bold ${label.vertical === false ? 'bg-pink-500 text-white' : 'hover:bg-gray-100'}">↔ 橫書</button>
+                  </div>
+                </div>
+
+                <button onclick="deleteFloatingLabel('${label.id}')"
+                        class="w-full py-3 border-2 border-red-500 text-red-500 rounded font-bold hover:bg-red-50 mt-4">
+                  🗑 刪除此標籤
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      }
+
       // Hashtags 編輯
       if (activeElementId === 'footer-hashtags') {
         const hashtagsBase = siteData.footer?.hashtags || INITIAL_DATA.footer.hashtags;
@@ -4169,6 +4301,7 @@
               ${!isAdmin ? `
                 <button onclick="showLoginModal()" class="admin-btn" title="後台管理"></button>
               ` : `
+                <button onclick="addFloatingLabel()" class="admin-btn" style="background: #FF00A0;" title="+ 浮動標籤"></button>
                 <button onclick="selectElement('background-settings')" class="admin-btn" style="background: #4CAF50;" title="網站設定"></button>
                 <button onclick="exitAdmin()" class="admin-btn" style="background: #333;" title="退出編輯"></button>
               `}
@@ -4519,6 +4652,21 @@
                 ${onClickAttrs}
               >${text}</${tag}>
             `;
+          })()}
+
+          <!-- 自訂浮動標籤 -->
+          ${(() => {
+            const labels = getFloatingLabels();
+            return labels.map(label => {
+              const writingMode = label.vertical !== false ? 'vertical-rl' : 'horizontal-tb';
+              return `
+                <div
+                  class="floating-label-item ${isAdmin ? 'admin-highlight' : ''} ${activeElementId === label.id ? 'ring-4 ring-pink-500' : ''}"
+                  style="top:${label.posY || 200}px; background:${label.bgColor || '#FF00A0'}; color:${label.textColor || '#FFFFFF'}; font-size:${label.fontSize || 16}px; writing-mode:${writingMode}; transform:rotate(${label.rotation || 0}deg);"
+                  ${isAdmin ? `onclick="selectElement('${label.id}')"` : ''}
+                >${label.text || ''}</div>
+              `;
+            }).join('');
           })()}
 
           ${(() => {
