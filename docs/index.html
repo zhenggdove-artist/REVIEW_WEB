@@ -75,6 +75,74 @@
       /* 隱藏原生卷軸 */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-thumb { background: #000; border-radius: 3px; }
+
+      /* 浮動標籤樣式 */
+      .floating-label {
+        position: fixed;
+        left: 0;
+        z-index: 1000;
+        padding: 12px 8px;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .floating-label:hover {
+        transform: scale(1.05);
+        box-shadow: 6px 6px 0px rgba(0,0,0,0.4);
+      }
+      .floating-label.active {
+        outline: 3px solid #00a1ff;
+        outline-offset: 2px;
+      }
+      .floating-label-panel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 350px;
+        height: 100vh;
+        background: white;
+        border-left: 3px solid #000;
+        z-index: 2500;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+        overflow-y: auto;
+        animation: sidebarIn 0.3s ease;
+      }
+      .fl-section { padding: 20px; border-bottom: 1px solid #eee; }
+      .fl-label { font-size: 12px; font-weight: bold; margin-bottom: 8px; display: block; }
+      .fl-input { width: 100%; padding: 10px; border: 2px solid #000; border-radius: 4px; font-size: 14px; }
+      .fl-textarea { width: 100%; height: 80px; padding: 10px; border: 2px solid #000; border-radius: 4px; resize: none; }
+      .fl-color-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .fl-color-input { width: 50px; height: 50px; border: 2px solid #000; padding: 2px; cursor: pointer; }
+      .fl-btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .fl-btn { padding: 8px; border: 2px solid #000; background: white; font-size: 11px; font-weight: bold; cursor: pointer; }
+      .fl-btn.active { background: #FF00A0; color: white; }
+      .fl-btn:hover:not(.active) { background: #f0f0f0; }
+      .fl-range { width: 100%; accent-color: #FF00A0; }
+      .fl-header { padding: 20px; background: #FFF0F5; border-bottom: 2px solid #000; display: flex; justify-content: space-between; align-items: center; }
+      .fl-close { width: 36px; height: 36px; border: 2px solid #000; border-radius: 50%; background: white; font-size: 18px; cursor: pointer; }
+      .fl-close:hover { background: #000; color: white; }
+      .fl-save { width: 100%; padding: 16px; background: #FF00A0; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; }
+      .fl-save:hover { background: #E0008A; }
+      .fl-delete { width: 100%; padding: 12px; background: white; color: #E53E3E; border: 2px solid #E53E3E; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 10px; }
+      .fl-delete:hover { background: #FFF5F5; }
+      .fl-add-btn {
+        position: fixed;
+        top: 24px;
+        left: 180px;
+        z-index: 2100;
+        background: #FF00A0;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+        display: none;
+      }
+      .fl-add-btn:hover { background: #E0008A; }
+      .admin-mode-active .fl-add-btn { display: block; }
     </style>
 
     <script type="importmap">
@@ -90,5 +158,268 @@
   </head>
   <body>
     <div id="root"></div>
+    <div id="floating-labels-container"></div>
+    <button class="fl-add-btn" id="fl-add-btn">+ 浮動標籤</button>
+    <div id="floating-label-panel-container"></div>
+
+    <script>
+    (function() {
+      const STORAGE_KEY = 'floating_labels_v1';
+      let labels = [];
+      let activeId = null;
+      let isAdmin = false;
+
+      // 初始化
+      function init() {
+        loadLabels();
+        renderLabels();
+        setupAdminObserver();
+        document.getElementById('fl-add-btn').addEventListener('click', addLabel);
+      }
+
+      // 監聽 admin 模式
+      function setupAdminObserver() {
+        const observer = new MutationObserver(() => {
+          const root = document.querySelector('.min-h-screen');
+          isAdmin = root && root.classList.contains('admin-mode-active');
+          renderLabels();
+          if (!isAdmin) closePanel();
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+
+        // 定期檢查
+        setInterval(() => {
+          const root = document.querySelector('.min-h-screen');
+          const newAdmin = root && root.classList.contains('admin-mode-active');
+          if (newAdmin !== isAdmin) {
+            isAdmin = newAdmin;
+            renderLabels();
+            if (!isAdmin) closePanel();
+          }
+        }, 500);
+      }
+
+      // 讀取資料
+      function loadLabels() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          labels = saved ? JSON.parse(saved) : [
+            { id: 'fl-1', content: '溫柔視線行動', color: '#FFFFFF', bgColor: '#FF00A0', fontSize: 'text-sm', top: 30, rotation: 0, vertical: true }
+          ];
+        } catch(e) { labels = []; }
+      }
+
+      // 儲存資料
+      function saveLabels() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(labels));
+      }
+
+      // 新增標籤
+      function addLabel() {
+        const newLabel = {
+          id: 'fl-' + Date.now(),
+          content: '新標籤',
+          color: '#FFFFFF',
+          bgColor: '#FF00A0',
+          fontSize: 'text-sm',
+          top: 50,
+          rotation: 0,
+          vertical: true
+        };
+        labels.push(newLabel);
+        saveLabels();
+        renderLabels();
+        openPanel(newLabel.id);
+      }
+
+      // 刪除標籤
+      function deleteLabel(id) {
+        if (!confirm('確定要刪除這個浮動標籤嗎？')) return;
+        labels = labels.filter(l => l.id !== id);
+        saveLabels();
+        closePanel();
+        renderLabels();
+      }
+
+      // 渲染所有標籤
+      function renderLabels() {
+        const container = document.getElementById('floating-labels-container');
+        container.innerHTML = labels.map(label => {
+          const fontClass = label.fontSize || 'text-sm';
+          return `
+            <div class="floating-label ${activeId === label.id ? 'active' : ''}"
+                 data-id="${label.id}"
+                 style="
+                   top: ${label.top}%;
+                   background-color: ${label.bgColor};
+                   color: ${label.color};
+                   transform: rotate(${label.rotation}deg);
+                   writing-mode: ${label.vertical ? 'vertical-rl' : 'horizontal-tb'};
+                 ">
+              <span class="${fontClass}">${label.content}</span>
+            </div>
+          `;
+        }).join('');
+
+        // 綁定點擊事件
+        container.querySelectorAll('.floating-label').forEach(el => {
+          el.addEventListener('click', () => {
+            if (isAdmin) openPanel(el.dataset.id);
+          });
+        });
+      }
+
+      // 打開編輯面板
+      function openPanel(id) {
+        activeId = id;
+        const label = labels.find(l => l.id === id);
+        if (!label) return;
+
+        renderLabels();
+
+        const fontSizes = [
+          { label: '小', value: 'text-xs' },
+          { label: '中', value: 'text-sm' },
+          { label: '大', value: 'text-base' },
+          { label: '特大', value: 'text-lg' },
+          { label: '標題', value: 'text-xl' },
+          { label: '震撼', value: 'text-2xl' }
+        ];
+
+        document.getElementById('floating-label-panel-container').innerHTML = `
+          <div class="floating-label-panel">
+            <div class="fl-header">
+              <div>
+                <div style="font-size: 18px; font-weight: bold;">浮動標籤設定</div>
+                <div style="font-size: 10px; color: #FF00A0;">ID: ${label.id}</div>
+              </div>
+              <button class="fl-close" id="fl-close">✕</button>
+            </div>
+
+            <div class="fl-section">
+              <label class="fl-label">標籤文字</label>
+              <textarea class="fl-textarea" id="fl-content">${label.content}</textarea>
+            </div>
+
+            <div class="fl-section">
+              <div class="fl-color-row">
+                <span class="fl-label" style="margin:0">文字顏色</span>
+                <input type="color" class="fl-color-input" id="fl-color" value="${label.color}">
+              </div>
+              <div class="fl-color-row">
+                <span class="fl-label" style="margin:0">背景顏色</span>
+                <input type="color" class="fl-color-input" id="fl-bgColor" value="${label.bgColor}">
+              </div>
+            </div>
+
+            <div class="fl-section">
+              <label class="fl-label">文字大小</label>
+              <div class="fl-btn-group">
+                ${fontSizes.map(f => `
+                  <button class="fl-btn fl-font-btn ${label.fontSize === f.value ? 'active' : ''}" data-value="${f.value}">${f.label}</button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="fl-section">
+              <label class="fl-label">文字方向</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="fl-btn fl-dir-btn ${label.vertical ? 'active' : ''}" data-vertical="true">↕ 直書</button>
+                <button class="fl-btn fl-dir-btn ${!label.vertical ? 'active' : ''}" data-vertical="false">↔ 橫書</button>
+              </div>
+            </div>
+
+            <div class="fl-section" style="background: #FFF0F5;">
+              <label class="fl-label">📍 位置調整</label>
+              <div style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                  <span>垂直位置</span><span id="fl-top-val">${label.top}%</span>
+                </div>
+                <input type="range" class="fl-range" id="fl-top" min="5" max="95" value="${label.top}">
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                  <span>旋轉角度</span><span id="fl-rotation-val">${label.rotation}°</span>
+                </div>
+                <input type="range" class="fl-range" id="fl-rotation" min="-45" max="45" value="${label.rotation}">
+              </div>
+            </div>
+
+            <div class="fl-section">
+              <button class="fl-save" id="fl-save">完成並儲存</button>
+              <button class="fl-delete" id="fl-delete">🗑 刪除此標籤</button>
+            </div>
+          </div>
+        `;
+
+        // 綁定事件
+        document.getElementById('fl-close').addEventListener('click', closePanel);
+        document.getElementById('fl-save').addEventListener('click', closePanel);
+        document.getElementById('fl-delete').addEventListener('click', () => deleteLabel(id));
+
+        document.getElementById('fl-content').addEventListener('input', e => {
+          label.content = e.target.value;
+          saveLabels();
+          renderLabels();
+        });
+
+        document.getElementById('fl-color').addEventListener('input', e => {
+          label.color = e.target.value;
+          saveLabels();
+          renderLabels();
+        });
+
+        document.getElementById('fl-bgColor').addEventListener('input', e => {
+          label.bgColor = e.target.value;
+          saveLabels();
+          renderLabels();
+        });
+
+        document.querySelectorAll('.fl-font-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            label.fontSize = btn.dataset.value;
+            saveLabels();
+            openPanel(id);
+          });
+        });
+
+        document.querySelectorAll('.fl-dir-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            label.vertical = btn.dataset.vertical === 'true';
+            saveLabels();
+            openPanel(id);
+          });
+        });
+
+        document.getElementById('fl-top').addEventListener('input', e => {
+          label.top = parseInt(e.target.value);
+          document.getElementById('fl-top-val').textContent = label.top + '%';
+          saveLabels();
+          renderLabels();
+        });
+
+        document.getElementById('fl-rotation').addEventListener('input', e => {
+          label.rotation = parseInt(e.target.value);
+          document.getElementById('fl-rotation-val').textContent = label.rotation + '°';
+          saveLabels();
+          renderLabels();
+        });
+      }
+
+      // 關閉面板
+      function closePanel() {
+        activeId = null;
+        document.getElementById('floating-label-panel-container').innerHTML = '';
+        renderLabels();
+      }
+
+      // 啟動
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+    </script>
 </body>
 </html>
