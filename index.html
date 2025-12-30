@@ -337,9 +337,23 @@
       letter-spacing: 0.05em;
       cursor: pointer;
       transition: transform 0.2s, filter 0.2s;
-      box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+      text-decoration: none;
+      animation: floatingLabelFlicker 2.8s infinite;
     }
-    .floating-label-item:hover { filter: brightness(1.1); transform: scale(1.05); }
+    .floating-label-item:hover { filter: brightness(1.15); transform: scale(1.05); }
+    @keyframes floatingLabelFlicker {
+      0%, 100% { opacity: 1; }
+      5% { opacity: 0.85; }
+      6% { opacity: 1; }
+      12% { opacity: 0.7; }
+      13% { opacity: 1; }
+      45% { opacity: 0.78; }
+      46% { opacity: 1; }
+      60% { opacity: 0.9; }
+      61% { opacity: 1; }
+      72% { opacity: 0.8; }
+      73% { opacity: 1; }
+    }
 
     /* 活動說明區塊（輪播下方） */
     .event-info-box { position: relative; }
@@ -1950,8 +1964,10 @@
       const newLabel = {
         id: 'fl-' + Date.now(),
         text: '新標籤',
+        url: '',
         bgColor: '#FF00A0',
         textColor: '#FFFFFF',
+        glowColor: '#FF00A0',
         fontSize: 16,
         posY: 200 + labels.length * 80,
         rotation: 0,
@@ -3450,7 +3466,14 @@
                          onchange="updateFloatingLabel('${label.id}', {text: this.value})">
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-bold mb-2">連結網址</label>
+                  <input type="text" value="${label.url || ''}" class="w-full p-2 border-2 border-black rounded" placeholder="https://..."
+                         onchange="updateFloatingLabel('${label.id}', {url: this.value})">
+                  <p class="text-xs text-gray-500 mt-1">留空則不跳轉</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
                   <div>
                     <label class="block text-xs font-bold mb-1">文字顏色</label>
                     <input type="color" value="${label.textColor || '#FFFFFF'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
@@ -3460,6 +3483,11 @@
                     <label class="block text-xs font-bold mb-1">背景顏色</label>
                     <input type="color" value="${label.bgColor || '#FF00A0'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
                            onchange="updateFloatingLabel('${label.id}', {bgColor: this.value})">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold mb-1">霓虹光色</label>
+                    <input type="color" value="${label.glowColor || '#FF00A0'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
+                           onchange="updateFloatingLabel('${label.id}', {glowColor: this.value})">
                   </div>
                 </div>
 
@@ -4659,12 +4687,18 @@
             const labels = getFloatingLabels();
             return labels.map(label => {
               const writingMode = label.vertical !== false ? 'vertical-rl' : 'horizontal-tb';
+              const glowColor = label.glowColor || label.bgColor || '#FF00A0';
+              const glowShadow = `0 0 6px ${glowColor}90, 0 0 18px ${glowColor}bf, 0 0 36px ${glowColor}8c, 0 0 54px ${glowColor}59`;
+              const tag = label.url ? 'a' : 'div';
+              const hrefAttr = label.url ? `href="${label.url}" target="_blank" rel="noopener noreferrer"` : '';
+              const clickAttr = isAdmin ? `onclick="event.preventDefault();event.stopPropagation();selectElement('${label.id}')"` : '';
               return `
-                <div
+                <${tag}
+                  ${hrefAttr}
                   class="floating-label-item ${isAdmin ? 'admin-highlight' : ''} ${activeElementId === label.id ? 'ring-4 ring-pink-500' : ''}"
-                  style="top:${label.posY || 200}px; background:${label.bgColor || '#FF00A0'}; color:${label.textColor || '#FFFFFF'}; font-size:${label.fontSize || 16}px; writing-mode:${writingMode}; transform:rotate(${label.rotation || 0}deg);"
-                  ${isAdmin ? `onclick="selectElement('${label.id}')"` : ''}
-                >${label.text || ''}</div>
+                  style="top:${label.posY || 200}px; background:${label.bgColor || '#FF00A0'}; color:${label.textColor || '#FFFFFF'}; font-size:${label.fontSize || 16}px; writing-mode:${writingMode}; transform:rotate(${label.rotation || 0}deg); text-shadow:${glowShadow};"
+                  ${clickAttr}
+                >${label.text || ''}</${tag}>
               `;
             }).join('');
           })()}
