@@ -329,30 +329,30 @@
     /* 自訂浮動標籤 */
     .floating-label-item {
       position: fixed;
-      left: 0;
       z-index: 59;
       padding: 12px 10px;
-      border-radius: 0 12px 12px 0;
       font-weight: 700;
       letter-spacing: 0.05em;
       cursor: pointer;
       transition: transform 0.2s, filter 0.2s;
       text-decoration: none;
-      animation: floatingLabelFlicker 2.8s infinite;
+      animation: floatingLabelFlicker var(--fl-speed, 2.8s) infinite;
     }
+    .floating-label-item.fl-left { left: 0; border-radius: 0 12px 12px 0; }
+    .floating-label-item.fl-right { right: 0; border-radius: 12px 0 0 12px; }
     .floating-label-item:hover { filter: brightness(1.15); transform: scale(1.05); }
     @keyframes floatingLabelFlicker {
-      0%, 100% { opacity: 1; }
-      5% { opacity: 0.85; }
-      6% { opacity: 1; }
-      12% { opacity: 0.7; }
-      13% { opacity: 1; }
-      45% { opacity: 0.78; }
-      46% { opacity: 1; }
-      60% { opacity: 0.9; }
-      61% { opacity: 1; }
-      72% { opacity: 0.8; }
-      73% { opacity: 1; }
+      0%, 100% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
+      5% { filter: brightness(0.85) drop-shadow(0 0 calc(var(--fl-glow, 8px) * 0.7) var(--fl-glow-color, #FF00A0)); }
+      6% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
+      12% { filter: brightness(0.7) drop-shadow(0 0 calc(var(--fl-glow, 8px) * 0.5) var(--fl-glow-color, #FF00A0)); }
+      13% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
+      45% { filter: brightness(0.78) drop-shadow(0 0 calc(var(--fl-glow, 8px) * 0.6) var(--fl-glow-color, #FF00A0)); }
+      46% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
+      60% { filter: brightness(0.9) drop-shadow(0 0 calc(var(--fl-glow, 8px) * 0.8) var(--fl-glow-color, #FF00A0)); }
+      61% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
+      72% { filter: brightness(0.8) drop-shadow(0 0 calc(var(--fl-glow, 8px) * 0.55) var(--fl-glow-color, #FF00A0)); }
+      73% { filter: brightness(1) drop-shadow(0 0 var(--fl-glow, 8px) var(--fl-glow-color, #FF00A0)); }
     }
 
     /* 活動說明區塊（輪播下方） */
@@ -1965,9 +1965,13 @@
         id: 'fl-' + Date.now(),
         text: '新標籤',
         url: '',
+        side: 'left',
         bgColor: '#FF00A0',
+        bgOpacity: 100,
         textColor: '#FFFFFF',
         glowColor: '#FF00A0',
+        glowStrength: 8,
+        flickerSpeed: 2.8,
         fontSize: 16,
         posY: 200 + labels.length * 80,
         rotation: 0,
@@ -3453,6 +3457,9 @@
       if (activeElementId && activeElementId.startsWith('fl-')) {
         const label = getFloatingLabelById(activeElementId);
         if (label) {
+          const bgOpacity = label.bgOpacity ?? 100;
+          const glowStrength = label.glowStrength ?? 8;
+          const flickerSpeed = label.flickerSpeed ?? 2.8;
           return `
             <div class="sidebar open">
               <div class="p-4 border-b-2 border-black flex justify-between items-center bg-pink-50">
@@ -3473,6 +3480,16 @@
                   <p class="text-xs text-gray-500 mt-1">留空則不跳轉</p>
                 </div>
 
+                <div>
+                  <label class="block text-xs font-bold mb-2">浮動位置</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button onclick="updateFloatingLabel('${label.id}', {side: 'left'})"
+                            class="py-2 border-2 border-black rounded font-bold ${label.side !== 'right' ? 'bg-pink-500 text-white' : 'hover:bg-gray-100'}">← 左側</button>
+                    <button onclick="updateFloatingLabel('${label.id}', {side: 'right'})"
+                            class="py-2 border-2 border-black rounded font-bold ${label.side === 'right' ? 'bg-pink-500 text-white' : 'hover:bg-gray-100'}">右側 →</button>
+                  </div>
+                </div>
+
                 <div class="grid grid-cols-3 gap-2">
                   <div>
                     <label class="block text-xs font-bold mb-1">文字顏色</label>
@@ -3489,6 +3506,25 @@
                     <input type="color" value="${label.glowColor || '#FF00A0'}" class="w-full h-10 cursor-pointer border-2 border-black rounded"
                            onchange="updateFloatingLabel('${label.id}', {glowColor: this.value})">
                   </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">背景透明度: ${bgOpacity}%</label>
+                  <input type="range" min="0" max="100" value="${bgOpacity}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {bgOpacity: parseInt(this.value)})">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">霓虹強度: ${glowStrength}px</label>
+                  <input type="range" min="0" max="30" value="${glowStrength}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {glowStrength: parseInt(this.value)})">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold mb-1">閃爍速度: ${flickerSpeed}秒</label>
+                  <input type="range" min="0.5" max="8" step="0.1" value="${flickerSpeed}" class="w-full"
+                         onchange="updateFloatingLabel('${label.id}', {flickerSpeed: parseFloat(this.value)})">
+                  <p class="text-xs text-gray-400">數值越小閃爍越快</p>
                 </div>
 
                 <div>
@@ -4688,15 +4724,19 @@
             return labels.map(label => {
               const writingMode = label.vertical !== false ? 'vertical-rl' : 'horizontal-tb';
               const glowColor = label.glowColor || label.bgColor || '#FF00A0';
-              const glowShadow = `0 0 6px ${glowColor}90, 0 0 18px ${glowColor}bf, 0 0 36px ${glowColor}8c, 0 0 54px ${glowColor}59`;
+              const glowStrength = label.glowStrength ?? 8;
+              const flickerSpeed = label.flickerSpeed ?? 2.8;
+              const bgOpacity = (label.bgOpacity ?? 100) / 100;
+              const sideClass = label.side === 'right' ? 'fl-right' : 'fl-left';
               const tag = label.url ? 'a' : 'div';
               const hrefAttr = label.url ? `href="${label.url}" target="_blank" rel="noopener noreferrer"` : '';
               const clickAttr = isAdmin ? `onclick="event.preventDefault();event.stopPropagation();selectElement('${label.id}')"` : '';
+              const bgColorRgba = hexToRgba(label.bgColor || '#FF00A0', label.bgOpacity ?? 100);
               return `
                 <${tag}
                   ${hrefAttr}
-                  class="floating-label-item ${isAdmin ? 'admin-highlight' : ''} ${activeElementId === label.id ? 'ring-4 ring-pink-500' : ''}"
-                  style="top:${label.posY || 200}px; background:${label.bgColor || '#FF00A0'}; color:${label.textColor || '#FFFFFF'}; font-size:${label.fontSize || 16}px; writing-mode:${writingMode}; transform:rotate(${label.rotation || 0}deg); text-shadow:${glowShadow};"
+                  class="floating-label-item ${sideClass} ${isAdmin ? 'admin-highlight' : ''} ${activeElementId === label.id ? 'ring-4 ring-pink-500' : ''}"
+                  style="top:${label.posY || 200}px; background:${bgColorRgba}; color:${label.textColor || '#FFFFFF'}; font-size:${label.fontSize || 16}px; writing-mode:${writingMode}; transform:rotate(${label.rotation || 0}deg); --fl-speed:${flickerSpeed}s; --fl-glow:${glowStrength}px; --fl-glow-color:${glowColor};"
                   ${clickAttr}
                 >${label.text || ''}</${tag}>
               `;
