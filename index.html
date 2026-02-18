@@ -1120,6 +1120,49 @@
     // 修正 INITIAL_DATA（避免重置後仍出現錯字）
     fixKnownContentTypos(INITIAL_DATA);
 
+    // ============ 圖片連結修正（duk.tw 圖片物流可能失效 / 離線）============
+    const DUK_IMAGE_URL_MAP = {
+      'https://duk.tw/o00drs.jpg': './docs/assets/背景3.jpg',
+      'https://duk.tw/LkYAiN.jpg': './docs/assets/背景1.jpg',
+      'https://duk.tw/jIofJu.jpg': './docs/assets/背景2.jpg',
+      'https://duk.tw/NxWMA9.jpg': './docs/assets/dianosaur/DDII/DII01.jpg',
+      'https://duk.tw/KzIOgn.png': './assets/review-title.png',
+      'https://duk.tw/waZ23h.png': './docs/assets/Gemini_Generated_Image_cc7s7acc7s7acc7s (1).png',
+      'https://duk.tw/oBMrzR.png': './docs/assets/Gemini_Generated_Image_uy6xcruy6xcruy6x-1.jpg',
+      'https://duk.tw/0oSHba.jpg': './docs/assets/背景1.jpg',
+      'https://duk.tw/6Ghhce.jpg': './docs/assets/背景2.jpg',
+      'https://duk.tw/EKAqv8.jpg': './docs/assets/背景4.jpg',
+      'https://duk.tw/SPoAZC.jpg': './docs/assets/背景6.jpg',
+      'https://duk.tw/SMkP0Y.jpg': './docs/assets/背景7.jpg',
+      'https://duk.tw/YEFpLg.jpg': './docs/assets/ChatGPT Image 2025年12月23日 上午11_29_23.jpg',
+      'https://duk.tw/Q0wxv1.jpg': './docs/assets/ChatGPT Image 2025年12月23日 下午01_05_24.jpg',
+      'https://duk.tw/RJI8Vk.jpg': './docs/assets/dianosaur/D01.jpg',
+      'https://duk.tw/lY5reT.jpg': './docs/assets/dianosaur/D02.jpg',
+      'https://duk.tw/GhzAnX.jpg': './docs/assets/dianosaur/D03.jpg',
+      'https://duk.tw/wB0ttg.jpg': './docs/assets/dianosaur/D04.jpg',
+      'https://duk.tw/jnhvOp.jpg': './docs/assets/背景5.jpg',
+      'https://duk.tw/VnArn0.png': './docs/assets/player/player1.PNG',
+      'https://duk.tw/OFsgSM.png': './docs/assets/player/player2.PNG',
+      // 舊資料相容
+      'https://duk.tw/waZ23h.jpg': './docs/assets/Gemini_Generated_Image_uy6xcruy6xcruy6x-1.jpg',
+    };
+
+    function migrateDukImageUrls(node) {
+      if (node == null) return node;
+      if (typeof node === 'string') return DUK_IMAGE_URL_MAP[node] || node;
+      if (Array.isArray(node)) {
+        for (let i = 0; i < node.length; i++) node[i] = migrateDukImageUrls(node[i]);
+        return node;
+      }
+      if (typeof node === 'object') {
+        for (const k in node) node[k] = migrateDukImageUrls(node[k]);
+        return node;
+      }
+      return node;
+    }
+
+    migrateDukImageUrls(INITIAL_DATA);
+
     // ============ 狀態管理 ============
     let siteData = null;
     try {
@@ -1129,6 +1172,7 @@
     }
     if (!siteData || typeof siteData !== 'object') siteData = JSON.parse(JSON.stringify(INITIAL_DATA));
     fixKnownContentTypos(siteData);
+    migrateDukImageUrls(siteData);
 
     if (!siteData.decoration || typeof siteData.decoration !== 'object') {
       siteData.decoration = JSON.parse(JSON.stringify(INITIAL_DATA.decoration));
